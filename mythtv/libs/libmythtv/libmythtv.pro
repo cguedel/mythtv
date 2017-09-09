@@ -772,6 +772,14 @@ using_backend {
         DEFINES += USING_HDHOMERUN
     }
 
+    using_satip {
+        HEADERS += recorders/satiputils.h
+
+        SOURCES += recorders/satiputils.cpp
+
+        DEFINES += USING_SATIP
+    }
+
     # Support for VBox
     using_vbox {
         HEADERS += recorders/vboxutils.h

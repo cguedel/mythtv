@@ -2723,6 +2723,11 @@ CaptureCardGroup::CaptureCardGroup(CaptureCard &parent)
                                new HDHomeRunConfigurationGroup(parent, *cardtype));
 #endif // USING_HDHOMERUN
 
+#ifdef USING_SATIP
+    cardtype->addTargetedChild("SATIP",
+                               new SatIPConfigurationGroup(parent, *cardtype));
+#endif // USING_SATIP
+
 #ifdef USING_VBOX
     cardtype->addTargetedChild("VBOX",
                                new VBoxConfigurationGroup(parent, *cardtype));
@@ -2918,6 +2923,11 @@ void CardType::fillSelections(MythUIComboBoxSetting* setting)
     setting->addSelection(
         QObject::tr("HDHomeRun networked tuner"), "HDHOMERUN");
 #endif // USING_HDHOMERUN
+
+#ifdef USING_SATIP
+    setting->addSelection(
+        QObject::tr("Sat>IP networked tuner"), "SATIP");
+#endif // USING_SATIP
 
 #ifdef USING_VBOX
     setting->addSelection(
@@ -4181,3 +4191,159 @@ void DVBConfigurationGroup::Save(void)
     trees.InvalidateTrees();
 }
 
+// -----------------------
+// SAT>IP configuration
+// -----------------------
+SatIPConfigurationGroup::SatIPConfigurationGroup
+        (CaptureCard& a_parent, CardType &a_cardtype) :
+    parent(a_parent)
+{
+    setVisible(false);
+
+    FillDeviceList();
+
+    deviceid = new SatIPDeviceID(parent);
+    friendlyname = new SatIPDeviceAttribute(tr("Friendly name"), tr("Friendly name of the Sat>IP server"));
+    tunertype = new SatIPDeviceAttribute(tr("Tuner type"), tr("Tuner type of the selected tuner"));
+    tunerindex = new SatIPDeviceAttribute(tr("Tuner index"), tr("Index of the tuner on the Sat>IP server"));
+
+    deviceidlist = new SatIPDeviceIDList(
+        deviceid, friendlyname, tunertype, tunerindex, &devicelist);
+
+    a_cardtype.addTargetedChild("SATIP", deviceidlist);
+    a_cardtype.addTargetedChild("SATIP", friendlyname);
+    a_cardtype.addTargetedChild("SATIP", tunertype);
+    a_cardtype.addTargetedChild("SATIP", tunerindex);
+    a_cardtype.addTargetedChild("SATIP", deviceid);
+
+    connect(deviceidlist, SIGNAL(NewTuner(const QString&)),
+            deviceid,     SLOT(  SetTuner(const QString&)));
+};
+
+void SatIPConfigurationGroup::FillDeviceList(void)
+{
+    devicelist.clear();
+
+    // Find devices on the network
+    // Returns each devices as "deviceid friendlyname ip tunerno tunertype"
+    QStringList devs = CardUtil::ProbeVideoDevices("SATIP");
+
+    QStringList::const_iterator it;
+
+    for (it = devs.begin(); it != devs.end(); ++it)
+    {
+        QString dev = *it;
+        QStringList devparts = dev.split(" ");
+        QString id = devparts.at(0);
+        QString name = devparts.at(1);
+        QString ip = devparts.at(2);
+        QString tunerno = devparts.at(3);
+        QString tunertype = devparts.at(4);
+
+        SatIPDevice device;
+        device.deviceid = id;
+        device.cardip = ip;
+        device.inuse = false;
+        device.friendlyname = name;
+        device.discovered = true;
+        device.tunerno = tunerno;
+        device.tunertype = tunertype;
+        device.mythdeviceid = QString("%1:%2:%3").arg(id).arg(tunertype).arg(tunerno);
+
+        QString friendlyIdentifier = QString("%1, %2, Tuner #%3").arg(name).arg(tunertype).arg(tunerno);
+
+        devicelist[friendlyIdentifier] = device; 
+    }
+};
+
+SatIPDeviceIDList::SatIPDeviceIDList(
+    SatIPDeviceID *deviceid,
+    SatIPDeviceAttribute *friendlyname,
+    SatIPDeviceAttribute *tunertype,
+    SatIPDeviceAttribute *tunerindex,
+    SatIPDeviceList *devicelist) :
+    _deviceid(deviceid),
+    _friendlyname(friendlyname),
+    _tunertype(tunertype),
+    _tunerindex(tunerindex),
+    _devicelist(devicelist)
+{
+    setLabel(tr("Available devices"));
+    setHelpText(tr("Device IP or ID, tuner number and tuner type of available Sat>IP device"));
+
+    connect(this, SIGNAL(valueChanged(const QString&)),
+        this, SLOT(UpdateDevices(const QString&)));
+};
+
+void SatIPDeviceIDList::Load(void)
+{
+    clearSelections();
+    fillSelections(_deviceid->getValue());
+};
+
+void SatIPDeviceIDList::UpdateDevices(const QString &v)
+{
+    SatIPDevice dev = (*_devicelist)[v];
+    _deviceid->setValue(dev.mythdeviceid);
+    _friendlyname->setValue(dev.friendlyname);
+    _tunertype->setValue(dev.tunertype);
+    _tunerindex->setValue(dev.tunerno);
+
+    emit NewTuner(dev.mythdeviceid);
+};
+
+void SatIPDeviceIDList::fillSelections(const QString &cur)
+{
+    clearSelections();
+
+    vector<QString> devs;
+    QMap<QString, bool> in_use;
+
+    QString current = cur;
+    QString sel;
+
+    SatIPDeviceList::iterator it = _devicelist->begin();
+    for(; it != _devicelist->end(); ++it)
+    {
+        devs.push_back(it.key());
+        in_use[it.key()] = (*it).inuse;
+    }
+
+    vector<QString>::const_iterator it2 = devs.begin();
+    for (; it2 != devs.end(); ++it2)
+        sel = (current == *it2) ? *it2 : sel;
+    
+    QString usestr = QString(" -- ");
+    usestr += tr("Warning: already in use");
+
+    for (uint i = 0; i < devs.size(); ++i)
+    {
+        const QString dev = devs[i];
+        QString desc = dev + (in_use[devs[i]] ? usestr : "");
+        addSelection(desc, dev, dev == sel);
+    }
+};
+
+SatIPDeviceID::SatIPDeviceID(const CaptureCard &parent) :
+    MythUITextEditSetting(new CaptureCardDBStorage(this, parent, "videodevice"))
+{
+    setEnabled(false);
+    setLabel(tr("Device ID"));
+    setHelpText(tr("Device ID of the Sat>IP tuner"));
+};
+
+void SatIPDeviceID::Load(void)
+{
+    GetStorage()->Load();
+};
+
+void SatIPDeviceID::SetTuner(const QString &tuner)
+{
+    setValue(tuner);
+};
+
+SatIPDeviceAttribute::SatIPDeviceAttribute(const QString& label, const QString& helptext)
+{
+    setLabel(label);
+    setHelpText(helptext);
+};

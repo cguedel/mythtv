@@ -69,6 +69,7 @@ class MTV_PUBLIC CardUtil
         VBOX      = 19,
         DVBT2     = 20,
         V4L2ENC   = 21,
+        SATIP     = 22
     };
 
     static enum INPUT_TYPES toInputType(const QString &name)
@@ -117,6 +118,8 @@ class MTV_PUBLIC CardUtil
             return DVBT2;
         if ("V4L2ENC" == name)
             return V4L2ENC;
+        if ("SATIP" == name)
+            return SATIP;
         return ERROR_UNKNOWN;
     }
 
@@ -127,7 +130,7 @@ class MTV_PUBLIC CardUtil
             (rawtype != "HDHOMERUN") && (rawtype != "FREEBOX")  &&
             (rawtype != "IMPORT")    && (rawtype != "DEMO")     &&
             (rawtype != "ASI")       && (rawtype != "CETON")    &&
-            (rawtype != "VBOX");
+            (rawtype != "VBOX")      && (rawtype != "SATIP");
     }
 
     static bool         IsV4L(const QString &rawtype)
@@ -166,7 +169,8 @@ class MTV_PUBLIC CardUtil
             (rawtype == "DVB")       || (rawtype == "HDHOMERUN") ||
             (rawtype == "ASI")       || (rawtype == "FREEBOX")   ||
             (rawtype == "CETON")     || (rawtype == "EXTERNAL")  ||
-            (rawtype == "VBOX")      || (rawtype == "V4L2ENC");
+            (rawtype == "VBOX")      || (rawtype == "V4L2ENC")   ||
+            (rawtype == "SATIP");
     }
 
     static bool         HasTuner(const QString &rawtype, const QString & device);
@@ -177,7 +181,7 @@ class MTV_PUBLIC CardUtil
         return
             (rawtype == "DVB")       || (rawtype == "HDHOMERUN") ||
             (rawtype == "ASI")       || (rawtype == "CETON")     ||
-            (rawtype == "EXTERNAL");
+            (rawtype == "EXTERNAL")  || (rawtype == "SATIP");
     }
 
     static bool         IsTuningAnalog(const QString &rawtype)
@@ -201,7 +205,7 @@ class MTV_PUBLIC CardUtil
             (rawtype == "FREEBOX")   || (rawtype == "ASI")       ||
             (rawtype == "IMPORT")    || (rawtype == "DEMO")      ||
             (rawtype == "CETON")     || (rawtype == "EXTERNAL")  ||
-            (rawtype == "VBOX");
+            (rawtype == "VBOX")      || (rawtype == "SATIP");
     }
 
     static bool         IsChannelReusable(const QString &rawtype)

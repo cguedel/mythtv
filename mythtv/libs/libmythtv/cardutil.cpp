@@ -40,6 +40,10 @@
 #include "hdhomerun.h"
 #endif
 
+#ifdef USING_SATIP
+#include "satiputils.h"
+#endif
+
 #ifdef USING_VBOX
 #include "vboxutils.h"
 #include "mythmiscutil.h"
@@ -88,6 +92,12 @@ QString CardUtil::GetScanableInputTypes(void)
         inputTypes += ",";
     inputTypes += "'HDHOMERUN'";
 #endif // USING_HDHOMERUN
+
+#ifdef USING_SATIP
+    if (!inputTypes.isEmpty())
+        inputTypes += ",";
+    inputTypes += "'SATIP'";
+#endif // USING_SATIP
 
 #ifdef USING_ASI
     if (!inputTypes.isEmpty())
@@ -160,7 +170,8 @@ bool CardUtil::IsCableCardPresent(uint inputid,
 bool CardUtil::HasTuner(const QString &rawtype, const QString & device)
 {
     if (rawtype == "DVB"     || rawtype == "HDHOMERUN" ||
-        rawtype == "FREEBOX" || rawtype == "CETON" || rawtype == "VBOX")
+        rawtype == "FREEBOX" || rawtype == "CETON" || 
+        rawtype == "VBOX"    || rawtype == "SATIP")
         return true;
 
 #ifdef USING_V4L2
@@ -462,7 +473,13 @@ QStringList CardUtil::ProbeVideoDevices(const QString &rawtype)
             }
         }
     }
-#endif // USING_HDHOMERUN
+#endif // USING_HDHOMEUN
+#ifdef USING_SATIP
+    else if (rawtype.toUpper() == "SATIP")
+    {
+        devs = SatIP::probeDevices();
+    }
+#endif // USING_SATIP
 #ifdef USING_VBOX
     else if (rawtype.toUpper() == "VBOX")
     {
