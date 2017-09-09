@@ -774,8 +774,20 @@ using_backend {
 
     using_satip {
         HEADERS += recorders/satiputils.h
+        HEADERS += recorders/satipchannel.h
+        HEADERS += recorders/satipstreamhandler.h
+        HEADERS += recorders/satipsignalmonitor.h
+        HEADERS += recorders/satiprtsp.h
+        HEADERS += recorders/satiprecorder.h
+        HEADERS += recorders/satiprtcppacket.h
 
         SOURCES += recorders/satiputils.cpp
+        SOURCES += recorders/satipchannel.cpp
+        SOURCES += recorders/satipstreamhandler.cpp
+        SOURCES += recorders/satipsignalmonitor.cpp
+        SOURCES += recorders/satiprtsp.cpp
+        SOURCES += recorders/satiprecorder.cpp
+        SOURCES += recorders/satiprtcppacket.cpp
 
         DEFINES += USING_SATIP
     }

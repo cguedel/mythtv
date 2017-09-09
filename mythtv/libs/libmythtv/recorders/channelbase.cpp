@@ -44,6 +44,7 @@ using namespace std;
 #include "cardutil.h"
 #include "compat.h"
 #include "inputinfo.h"
+#include "satipchannel.h"
 
 #define LOC QString("ChannelBase[%1]: ").arg(m_inputid)
 
@@ -740,6 +741,12 @@ ChannelBase *ChannelBase::CreateChannel(
     {
 #ifdef USING_CETON
         channel = new CetonChannel(tvrec, genOpt.videodev);
+#endif
+    }
+    else if (genOpt.inputtype == "SATIP")
+    {
+#ifdef USING_SATIP
+        channel = new SatIPChannel(tvrec, genOpt.videodev);
 #endif
     }
     else if (genOpt.inputtype == "V4L2ENC")

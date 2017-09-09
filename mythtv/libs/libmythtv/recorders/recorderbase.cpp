@@ -27,6 +27,8 @@ using namespace std;
 #include "dtvchannel.h"
 #include "dvbchannel.h"
 #include "v4lchannel.h"
+#include "satipchannel.h"
+#include "satiprecorder.h"
 #include "ExternalChannel.h"
 #include "ringbuffer.h"
 #include "cardutil.h"
@@ -916,6 +918,13 @@ RecorderBase *RecorderBase::CreateRecorder(
         recorder = new IPTVRecorder(
             tvrec, dynamic_cast<IPTVChannel*>(channel));
 #endif // USING_VBOX
+    }
+    else if (genOpt.inputtype == "SATIP")
+    {
+#ifdef USING_SATIP
+        recorder = new SatIPRecorder(
+            tvrec, dynamic_cast<SatIPChannel*>(channel));
+#endif // USING_SATIP
     }
     else if (genOpt.inputtype == "ASI")
     {

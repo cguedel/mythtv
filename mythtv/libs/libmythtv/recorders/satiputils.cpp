@@ -5,6 +5,7 @@
 #include <QStringList>
 
 // MythTV headers
+#include "cardutil.h"
 #include "mythlogging.h"
 #include "mythtimer.h"
 #include "satiputils.h"
@@ -125,3 +126,272 @@ QStringList SatIP::doUPNPsearch(void)
 
     return result;
 };
+
+QString SatIP::findDeviceIP(QString deviceuuid)
+{
+    QStringList devs = SatIP::probeDevices();
+
+    QStringList::const_iterator it;
+
+    for (it = devs.begin(); it != devs.end(); ++it)
+    {
+        QString dev = *it;
+        QStringList devinfo = dev.split(" ");
+        QString id = devinfo.at(0);
+
+        if (id.toUpper() == deviceuuid.toUpper())
+        {
+            return devinfo.at(2);
+        }
+    }
+
+    return NULL;
+}
+
+int SatIP::toDvbInputType(QString deviceid)
+{
+    QStringList dev = deviceid.split(":");
+    if (dev.length() < 3)
+    {
+        return CardUtil::ERROR_UNKNOWN;
+    }
+
+    QString type = dev.at(2).toUpper();
+    if (type == "DVBC2")
+    {
+        return CardUtil::DVBC; // DVB-C2 is not supported yet.
+    }
+    if (type == "DVBT2")
+    {
+        return CardUtil::DVBT2;
+    }
+    if (type == "DVBS2")
+    {
+        return CardUtil::DVBS2;
+    }
+
+    return CardUtil::ERROR_UNKNOWN;
+}
+
+int SatIP::toTunerType(QString deviceid)
+{
+    QStringList devinfo = deviceid.split(":");
+    if (devinfo.length() < 3)
+    {
+        return DTVTunerType::kTunerTypeUnknown;
+    }
+
+    QString type = devinfo.at(2).toUpper();
+
+    if (type.startsWith("DVBC")) // DVB-C2 is not supported yet.
+    {
+        return DTVTunerType::kTunerTypeDVBC;
+    }
+    
+    if (type == "DVBT")
+    {
+        return DTVTunerType::kTunerTypeDVBT;
+    }
+    
+    if (type == "DVBT2")
+    {
+        return DTVTunerType::kTunerTypeDVBT2;
+    }
+    
+    if (type == "DVBS")
+    {
+        return DTVTunerType::kTunerTypeDVBS1;
+    }
+    
+    if (type == "DVBS2")
+    {
+        return DTVTunerType::kTunerTypeDVBS2;
+    }
+
+    return DTVTunerType::kTunerTypeUnknown;
+}
+
+QString SatIP::bw(DTVBandwidth bw)
+{
+    if (bw == DTVBandwidth::kBandwidth6MHz)
+    {
+        return "6";
+    }
+    
+    if (bw == DTVBandwidth::kBandwidth7MHz)
+    {
+        return "7";
+    }
+
+    if (bw == DTVBandwidth::kBandwidth8MHz)
+    {
+        return "8";
+    }
+
+    return "auto"; // TODO: this is not in the spec.
+}
+
+QString SatIP::freq(uint64_t freq)
+{
+    return QString::number(freq / 1000000.0, 'f', 2);
+}
+
+QString SatIP::msys(DTVModulationSystem msys)
+{
+    if (msys == DTVModulationSystem::kModulationSystem_DVBS)
+    {
+        return "dvbs";
+    }
+
+    if (msys == DTVModulationSystem::kModulationSystem_DVBS2)
+    {
+        return "dvbs2";
+    }
+
+    if (msys == DTVModulationSystem::kModulationSystem_DVBT)
+    {
+        return "dvbt";
+    }
+
+    if (msys == DTVModulationSystem::kModulationSystem_DVBT2)
+    {
+        return "dvbt2";
+    }
+
+    return "unsupported";
+}
+
+QString SatIP::mtype(DTVModulation mtype)
+{
+    if (mtype == DTVModulation::kModulationQPSK)
+    {
+        return "qpsk";
+    }
+
+    if (mtype == DTVModulation::kModulation8PSK)
+    {
+        return "8psk";
+    }
+
+    if (mtype == DTVModulation::kModulationQAM16)
+    {
+        return "16qam";
+    }
+
+    if (mtype == DTVModulation::kModulationQAM32)
+    {
+        return "32qam";
+    }
+
+    if (mtype == DTVModulation::kModulationQAM64)
+    {
+        return "64qam";
+    }
+
+    if (mtype == DTVModulation::kModulationQAM128)
+    {
+        return "128qam";
+    }
+
+    if (mtype == DTVModulation::kModulationQAM256)
+    {
+        return "256qam";
+    }
+
+    return "unknownqam";
+}
+
+QString SatIP::tmode(DTVTransmitMode tmode)
+{
+    if (tmode == DTVTransmitMode::kTransmissionMode2K)
+    {
+        return "2k";
+    }
+
+    if (tmode == DTVTransmitMode::kTransmissionMode8K)
+    {
+        return "8k";
+    }
+
+    return "auto"; // TODO: this is not in the spec.
+}
+
+QString SatIP::gi(DTVGuardInterval gi)
+{
+    if (gi == DTVGuardInterval::kGuardInterval_1_4)
+    {
+        return "14";
+    }
+
+    if (gi == DTVGuardInterval::kGuardInterval_1_8)
+    {
+        return "18";
+    }
+
+    if (gi == DTVGuardInterval::kGuardInterval_1_16)
+    {
+        return "116";
+    }
+
+    if (gi == DTVGuardInterval::kGuardInterval_1_32)
+    {
+        return "132";
+    }
+
+    return "auto"; // TODO: this is not in the spec.
+}
+
+QString SatIP::fec(DTVCodeRate fec)
+{
+    if (fec == DTVCodeRate::kFEC_1_2)
+    {
+        return "12";
+    }
+
+    if (fec == DTVCodeRate::kFEC_2_3)
+    {
+        return "23";
+    }
+
+    if (fec == DTVCodeRate::kFEC_3_4)
+    {
+        return "34";
+    }
+
+    if (fec == DTVCodeRate::kFEC_3_5)
+    {
+        return "35";
+    }
+
+    if (fec == DTVCodeRate::kFEC_4_5)
+    {
+        return "45";
+    }
+
+    if (fec == DTVCodeRate::kFEC_5_6)
+    {
+        return "56";
+    }
+
+    if (fec == DTVCodeRate::kFEC_6_7)
+    {
+        return "67";
+    }
+
+    if (fec == DTVCodeRate::kFEC_7_8)
+    {
+        return "78";
+    }
+
+    if (fec == DTVCodeRate::kFEC_8_9)
+    {
+        return "89";
+    }
+
+    if (fec == DTVCodeRate::kFEC_9_10)
+    {
+        return "910";
+    }
+
+    return "auto"; // TODO: this is not in the spec.
+}

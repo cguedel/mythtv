@@ -45,8 +45,8 @@ void RTPPacketBuffer::PushDataPacket(const UDPPacket &udp_packet)
 
     // TODO pushing packets onto the ordered list should be based on
     // the bitrate and the M+N of the FEC.. but for now...
-    const int kHighWaterMark = 500;
-    const int kLowWaterMark  = 100;
+    const int kHighWaterMark = 0;
+    const int kLowWaterMark  = 0;
     if (m_unordered_packets.size() > kHighWaterMark)
     {
         while (m_unordered_packets.size() > kLowWaterMark)

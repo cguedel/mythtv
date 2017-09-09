@@ -42,6 +42,11 @@ extern "C" {
 #   include "iptvchannel.h"
 #endif
 
+#ifdef USING_SATIP
+#   include "satipsignalmonitor.h"
+#   include "satipchannel.h"
+#endif
+
 #ifdef USING_FIREWIRE
 #   include "firewiresignalmonitor.h"
 #   include "firewirechannel.h"
@@ -146,6 +151,15 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
         IPTVChannel *fbc = dynamic_cast<IPTVChannel*>(channel);
         if (fbc)
             signalMonitor = new IPTVSignalMonitor(db_cardnum, fbc);
+    }
+#endif
+
+#ifdef USING_SATIP
+    if (cardtype.toUpper() == "SATIP")
+    {
+        SatIPChannel *satipchan = dynamic_cast<SatIPChannel*>(channel);
+        if (satipchan)
+            signalMonitor = new SatIPSignalMonitor(db_cardnum, satipchan);
     }
 #endif
 
