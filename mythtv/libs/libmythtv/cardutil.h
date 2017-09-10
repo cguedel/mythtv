@@ -160,7 +160,8 @@ class MTV_PUBLIC CardUtil
     static bool         IsEITCapable(const QString &rawtype)
     {
         return
-            (rawtype == "DVB")       || (rawtype == "HDHOMERUN");
+            (rawtype == "DVB")       || (rawtype == "HDHOMERUN") ||
+            (rawtype == "SATIP");
     }
 
     static bool         IsTunerSharingCapable(const QString &rawtype)
