@@ -24,7 +24,7 @@
 
 SatIPSignalMonitor::SatIPSignalMonitor(
     int db_cardnum, SatIPChannel* _channel, uint64_t _flags) :
-    DTVSignalMonitor(db_cardnum, _channel, _flags),
+    DTVSignalMonitor(db_cardnum, _channel, true, _flags),
     streamHandlerStarted(false), streamHandler(NULL)
 {
     LOG(VB_CHANNEL, LOG_INFO, LOC + "ctor");

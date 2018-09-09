@@ -31,8 +31,8 @@ class SatIPStreamHandler : public StreamHandler
     static void Return(SatIPStreamHandler * & ref);
 
     virtual void AddListener(MPEGStreamData *data,
-        bool allow_section_reader = false,
-        bool needs_drb = false,
+            bool /*allow_section_reader*/ = false,
+            bool /*needs_drb*/            = false,
         QString output_file = QString())
     {
         StreamHandler::AddListener(data, false, false, output_file);
