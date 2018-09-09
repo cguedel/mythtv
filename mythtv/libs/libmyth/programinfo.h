@@ -243,7 +243,8 @@ class MPUBLIC ProgramInfo
 
                 const QString &seriesid,
                 const QString &programid,
-                const QString &inetref);
+                const QString &inetref,
+                const QString &inputname);
     /// Constructs a ProgramInfo for a pathname.
     explicit ProgramInfo(const QString &pathname);
     /// Constructs a ProgramInfo for a video.
@@ -280,6 +281,7 @@ class MPUBLIC ProgramInfo
             clear();
     }
 
+    bool operator==(const ProgramInfo& rhs);
     ProgramInfo &operator=(const ProgramInfo &other);
     virtual void clone(const ProgramInfo &other,
                        bool ignore_non_serialized_data = false);
@@ -425,7 +427,6 @@ class MPUBLIC ProgramInfo
     uint    GetRecordingID(void)              const { return recordedid; }
     RecStatus::Type GetRecordingStatus(void)    const
         { return (RecStatus::Type)recstatus; }
-    uint    GetPreferedInputID(void)          const { return prefinput; }
     uint    GetRecordingRuleID(void)          const { return recordid;  }
     uint    GetParentRecordingRuleID(void)    const { return parentid;  }
     RecordingType GetRecordingRuleType(void)  const
@@ -442,6 +443,10 @@ class MPUBLIC ProgramInfo
     uint    GetSourceID(void)             const { return sourceid;     }
     uint    GetInputID(void)              const { return inputid;      }
     QString GetInputName(void)            const { return inputname;    }
+    QString GetShortInputName(void) const
+        { return inputname.isRightToLeft() ?
+                 inputname.left(2) : inputname.right(2); }
+    void    ClearInputName(void)          { inputname.clear(); }
 
     uint    GetFindID(void)               const { return findid;       }
 
@@ -586,7 +591,7 @@ class MPUBLIC ProgramInfo
     void SaveDVDBookmark(const QStringList &fields) const;
     void SaveBDBookmark(const QStringList &fields) const;
     void SaveEditing(bool edit);
-    void SaveTranscodeStatus(TranscodingStatus transFlag);
+    void SaveTranscodeStatus(TranscodingStatus trans);
     void SaveWatched(bool watchedFlag);
     void SaveDeletePendingFlag(bool deleteFlag);
     void SaveCommFlagged(CommFlagStatus flag); // 1 = flagged, 2 = processing
@@ -758,7 +763,6 @@ class MPUBLIC ProgramInfo
     QDateTime lastmodified;
     QDateTime lastInUseTime;
 
-    uint32_t prefinput;
     int32_t recpriority2;
 
     uint32_t recordid;
@@ -849,7 +853,9 @@ MPUBLIC bool LoadFromRecorded(
     const QMap<QString,uint32_t> &inUseMap,
     const QMap<QString,bool> &isJobRunning,
     const QMap<QString, ProgramInfo*> &recMap,
-    int                 sort = 0);
+    int                 sort = 0,
+    const QString      &sortBy = "");
+
 
 template<typename TYPE>
 bool LoadFromScheduler(

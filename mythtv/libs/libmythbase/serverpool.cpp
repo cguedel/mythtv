@@ -364,19 +364,17 @@ QList<QHostAddress> ServerPool::DefaultBroadcastIPv6(void)
 
 void ServerPool::close(void)
 {
-    PrivTcpServer *server;
     while (!m_tcpServers.isEmpty())
     {
-        server = m_tcpServers.takeLast();
+        PrivTcpServer *server = m_tcpServers.takeLast();
         server->disconnect();
         server->close();
         server->deleteLater();
     }
 
-    PrivUdpSocket *socket;
     while (!m_udpSockets.isEmpty())
     {
-        socket = m_udpSockets.takeLast();
+        PrivUdpSocket *socket = m_udpSockets.takeLast();
         socket->disconnect();
         socket->close();
         socket->deleteLater();
@@ -405,13 +403,8 @@ bool ServerPool::listen(QList<QHostAddress> addrs, quint16 port,
             continue;
 
         PrivTcpServer *server = new PrivTcpServer(this, servertype);
-#if (QT_VERSION >= 0x050000)
             connect(server, &PrivTcpServer::newConnection,
                 this,   &ServerPool::newTcpConnection);
-#else
-            connect(server, SIGNAL(newConnection(qt_socket_fd_t)),
-                this,   SLOT(newTcpConnection(qt_socket_fd_t)));
-#endif
 
         server->setProxy(m_proxy);
         server->setMaxPendingConnections(m_maxPendingConn);

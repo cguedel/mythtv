@@ -1,7 +1,12 @@
 #include "privatedecoder_crystalhd.h"
 #include "mythlogging.h"
+#include "mythavutil.h"
 #include "fourcc.h"
 #include "unistd.h"
+
+extern "C" {
+#include "libavutil/imgutils.h"
+}
 
 #define LOC  QString("CrystalHD: ")
 #define ERR  QString("CrystalHD Err: ")
@@ -239,6 +244,8 @@ bool PrivateDecoderCrystalHD::Init(const QString &decoder,
                     sub_type = BC_MSUBTYPE_H264;
             }
             break;
+        default:
+            break;
     }
 
     if (sub_type == BC_MSUBTYPE_INVALID)
@@ -418,7 +425,7 @@ bool PrivateDecoderCrystalHD::HasBufferedFrames(void)
 int PrivateDecoderCrystalHD::ProcessPacket(AVStream *stream, AVPacket *pkt)
 {
     int result = -1;
-    AVCodecContext *avctx = stream->codec;
+    AVCodecContext *avctx = gCodecMap->getCodecContext(stream);
     if (!avctx)
         return result;
 
@@ -491,10 +498,12 @@ int PrivateDecoderCrystalHD::ProcessPacket(AVStream *stream, AVPacket *pkt)
         if (free_buf)
             av_freep(&buf);
 
-        free_buffer(buffer);
         if (!ok)
             LOG(VB_GENERAL, LOG_ERR, LOC + "Failed to send packet to decoder.");
+
         result = buffer->size;
+
+        free_buffer(buffer);
     }
     return result;
 }
@@ -508,7 +517,8 @@ int PrivateDecoderCrystalHD::GetFrame(AVStream *stream,
     if (!stream || !m_device || !picture)
         return result;
 
-    AVCodecContext *avctx = stream->codec;
+    AVCodecContext *avctx = gCodecMap->getCodecContext(stream);
+
     if (!avctx || !StartFetcherThread())
         return result;
 
@@ -650,7 +660,7 @@ void PrivateDecoderCrystalHD::FillFrame(BC_DTS_PROC_OUT *out)
 
     // line 21 data (608/708 captions)
     // this appears to be unimplemented in the driver
-    if (out->UserData && out->UserDataSz)
+    if (out->UserDataSz)
     {
         int size = out->UserDataSz > 1024 ? 1024 : out->UserDataSz;
         m_frame->priv[0] = (unsigned char*)av_malloc(size);
@@ -660,9 +670,10 @@ void PrivateDecoderCrystalHD::FillFrame(BC_DTS_PROC_OUT *out)
 
     AVPixelFormat out_fmt = AV_PIX_FMT_YUV420P;
     AVPixelFormat in_fmt  = bcmpixfmt_to_pixfmt(m_pix_fmt);
-    AVPicture img_in;
+    AVFrame img_in;
 
-    avpicture_fill(&img_in, src, in_fmt, in_width, in_height);
+    av_image_fill_arrays(img_in.data, img_in.linesize,
+        src, in_fmt, in_width, in_height, IMAGE_ALIGN);
 
     if (!(out->PicInfo.flags & VDEC_FLAG_INTERLACED_SRC))
     {
@@ -672,7 +683,7 @@ void PrivateDecoderCrystalHD::FillFrame(BC_DTS_PROC_OUT *out)
     }
     else
     {
-        AVPicture img_out;
+        AVFrame img_out;
 
         AVPictureFill(&img_out, m_frame);
         img_out.linesize[0] *= 2;
@@ -861,6 +872,7 @@ QString bcmerr_to_string(BC_STATUS err)
         case BC_STS_DEC_EXIST_OPEN:    return "Decoder exist open (?)";
         case BC_STS_PENDING:           return "Pending";
         case BC_STS_ERROR:             return "Unknown";
+        default: break;
     }
     return "Unknown error";
 }
@@ -872,6 +884,7 @@ QString bcmpixfmt_to_string(BC_OUTPUT_FORMAT fmt)
         case OUTPUT_MODE420:      return "YUV420P";
         case OUTPUT_MODE422_YUY2: return "YUYV422";
         case OUTPUT_MODE422_UYVY: return "UYVY422";
+        default: break;
     }
     return "Unknown";
 }
@@ -934,6 +947,7 @@ AVPixelFormat bcmpixfmt_to_pixfmt(BC_OUTPUT_FORMAT fmt)
         case OUTPUT_MODE420:      return AV_PIX_FMT_YUV420P;
         case OUTPUT_MODE422_YUY2: return AV_PIX_FMT_YUYV422;
         case OUTPUT_MODE422_UYVY: return AV_PIX_FMT_UYVY422;
+        default: break;
     }
     return AV_PIX_FMT_YUV420P;
 }

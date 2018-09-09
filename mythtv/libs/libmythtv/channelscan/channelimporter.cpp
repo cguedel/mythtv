@@ -87,13 +87,12 @@ void ChannelImporter::Process(const ScanDTVTransportList &_transports)
     FixUpOpenCable(transports);
 
     // if scan was not aborted prematurely..
-    uint deleted_count = 0;
     if (do_delete)
     {
         ScanDTVTransportList trans = transports;
         for (uint i = 0; i < db_trans.size(); i++)
             trans.push_back(db_trans[i]);
-        deleted_count = DeleteChannels(trans);
+        uint deleted_count = DeleteChannels(trans);
         if (deleted_count)
             transports = trans;
     }
@@ -539,9 +538,9 @@ ScanDTVTransportList ChannelImporter::InsertChannels(
                         chan.use_on_air_guide,
                         chan.hidden, chan.hidden_in_guide,
                         chan.freqid,
-                        QString::null,
-                        QString::null,
-                        QString::null,
+                        QString(),
+                        chan.format,
+                        QString(),
                         chan.default_authority);
 
                     if (!transports[i].iptv_tuning.GetDataURL().isEmpty())
@@ -700,9 +699,9 @@ ScanDTVTransportList ChannelImporter::UpdateChannels(
                     chan.use_on_air_guide,
                     chan.hidden, chan.hidden_in_guide,
                     chan.freqid,
-                    QString::null,
-                    QString::null,
-                    QString::null,
+                    QString(),
+                    chan.format,
+                    QString(),
                     chan.default_authority);
             }
 
@@ -742,7 +741,7 @@ void ChannelImporter::CleanupDuplicates(ScanDTVTransportList &transports) const
 {
     ScanDTVTransportList no_dups;
 
-    DTVTunerType tuner_type = DTVTunerType::kTunerTypeATSC;
+    DTVTunerType tuner_type(DTVTunerType::kTunerTypeATSC);
     if (!transports.empty())
         tuner_type = transports[0].tuner_type;
 
@@ -834,7 +833,7 @@ ScanDTVTransportList ChannelImporter::GetDBTransports(
 {
     ScanDTVTransportList not_in_scan;
 
-    DTVTunerType tuner_type = DTVTunerType::kTunerTypeATSC;
+    DTVTunerType tuner_type(DTVTunerType::kTunerTypeATSC);
     if (!transports.empty())
         tuner_type = transports[0].tuner_type;
 
@@ -1083,8 +1082,19 @@ QString ChannelImporter::FormatChannel(
     return msg;
 }
 
+/**
+ * \fn ChannelImporter::SimpleFormatChannel
+ *
+ * Format channel information into a simple string. The format of this
+ * string will depend on the type of standard used for the channels
+ * (atsc/scte/opencable/dvb).
+ *
+ * \param transport  Unused.
+ * \param chan       Info describing a channel
+ * \return Returns a simple name for the channel.
+ */
 QString ChannelImporter::SimpleFormatChannel(
-    const ScanDTVTransport          &transport,
+    const ScanDTVTransport          &/*transport*/,
     const ChannelInsertInfo         &chan)
 {
     QString msg;
@@ -1250,9 +1260,22 @@ void ChannelImporter::CountChannels(
     }
 }
 
+/**
+ * \fn ChannelImporter::ComputeSuggestedChannelNum
+ *
+ * Compute a suggested channel number based on various aspects of the
+ * channel information. Check to see if this channel number conflicts
+ * with an existing channel number. If so, fall back to incrementing a
+ * per-source number to fund an unused value.
+ *
+ * \param info       Unused.
+ * \param transport  Unused.
+ * \param chan       Info describing a channel
+ * \return Returns a simple name for the channel.
+ */
 QString ChannelImporter::ComputeSuggestedChannelNum(
-    const ChannelImporterBasicStats &info,
-    const ScanDTVTransport          &transport,
+    const ChannelImporterBasicStats &/*info*/,
+    const ScanDTVTransport          &/*transport*/,
     const ChannelInsertInfo         &chan)
 {
     static QMutex          last_free_lock;
@@ -1525,8 +1548,8 @@ OkCancelType ChannelImporter::ShowManualChannelPopup(
     QString message, QString &text)
 {
     int dc = -1;
-    MythScreenStack *popupStack = GetMythMainWindow()->GetStack("popup stack");
-    MythDialogBox *popup = new MythDialogBox(message, popupStack,
+    MythScreenStack *popupStack = parent->GetStack("popup stack");
+    MythDialogBox *popup = new MythDialogBox(title, message, popupStack,
                                              "manualchannelpopup");
 
     if (popup->Create())
@@ -1575,8 +1598,6 @@ OkCancelType ChannelImporter::ShowManualChannelPopup(
         }
         else
             delete textEdit;
-        delete popup;
-        popup = NULL;
     }
 
     bool ok = (0 == dc);

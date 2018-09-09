@@ -93,13 +93,14 @@ RecordingInfo::RecordingInfo(
     bool _future,
     int _schedorder,
     uint _mplexid,
-    uint _sgroupid) :
+    uint _sgroupid,
+    const QString &_inputname) :
     ProgramInfo(
         _title, _subtitle, _description, _season, _episode, _totalepisodes,
         _category, _chanid, _chanstr, _chansign, _channame,
         QString(), _recgroup, _playgroup,
         _startts, _endts, _recstartts, _recendts,
-        _seriesid, _programid, _inetref),
+        _seriesid, _programid, _inetref, _inputname),
     oldrecstatus(_oldrecstatus),
     savedrecstatus(RecStatus::Unknown),
     future(_future),
@@ -146,8 +147,8 @@ RecordingInfo::RecordingInfo(
 
     findid = _findid;
 
-    properties = ((_subtitleType    << 11) |
-                  (_videoproperties << 6)  |
+    properties = ((_subtitleType    << kSubtitlePropertyOffset) |
+                  (_videoproperties << kVideoPropertyOffset)  |
                   _audioproperties);
 
     if (recstartts >= recendts)
@@ -202,7 +203,7 @@ RecordingInfo::RecordingInfo(
         _category, _chanid, _chanstr, _chansign, _channame,
         QString(), _recgroup, _playgroup,
         _startts, _endts, _recstartts, _recendts,
-        _seriesid, _programid, _inetref),
+        _seriesid, _programid, _inetref, ""),
     oldrecstatus(RecStatus::Unknown),
     savedrecstatus(RecStatus::Unknown),
     future(false),
@@ -233,11 +234,11 @@ RecordingInfo::RecordingInfo(
 
 /** \brief Fills RecordingInfo for the program that airs at
  *         "desiredts" on "chanid".
- *  \param chanid  %Channel ID on which to search for program.
+ *  \param _chanid  %Channel ID on which to search for program.
  *  \param desiredts Date and Time for which we desire the program.
  *  \param genUnknown Generate a full entry for live-tv if unknown
  *  \param maxHours Clamp the maximum time to X hours from dtime.
- *  \return LoadStatus describing what happened.
+ *  \param[out] status LoadStatus describing what happened.
  */
 RecordingInfo::RecordingInfo(
     uint _chanid, const QDateTime &desiredts,
@@ -574,9 +575,12 @@ void RecordingInfo::ApplyRecordRecID(void)
 /**
  *  \brief Sets RecordingType of "record", creating "record" if it
  *         does not exist.
- *  \param newstate State to apply to "record" RecordingType.
+ *  \param newstate State to apply to "record" RecordingType. This
+ *                  uses same values as return of GetProgramRecordingState
+ *  \param save     If true, save the new state of the recording into the
+ *                  database. Note: If the new state is kNotRecording this
+ *                  means that the recording will be deleted.
  */
-// newstate uses same values as return of GetProgramRecordingState
 void RecordingInfo::ApplyRecordStateChange(RecordingType newstate, bool save)
 {
     GetProgramRecordingStatus();
@@ -1001,7 +1005,7 @@ void RecordingInfo::StartedRecording(QString ext)
 bool RecordingInfo::InsertProgram(RecordingInfo *pg,
                                   const RecordingRule *rule)
 {
-    QString inputname = pg->QueryInputDisplayName();
+    QString inputname = pg->GetInputName();
     int recgroupid = GetRecgroupID(pg->recgroup);
 
     MSqlQuery query(MSqlQuery::InitCon());
@@ -1071,6 +1075,9 @@ bool RecordingInfo::InsertProgram(RecordingInfo *pg,
 
     if (pg->originalAirDate.isValid())
         query.bindValue(":ORIGAIRDATE", pg->originalAirDate);
+    // If there is no originalairdate use "year"
+    else if (pg->year >= 1940)
+        query.bindValue(":ORIGAIRDATE", QDate(pg->year,1,1));
     else
         query.bindValue(":ORIGAIRDATE", "0000-00-00");
 
@@ -1144,10 +1151,13 @@ bool RecordingInfo::InsertProgram(RecordingInfo *pg,
     return ok;
 }
 
-/** \fn RecordingInfo::FinishedRecording(bool allowReRecord)
+/**
  *  \brief If not a premature stop, adds program to history of recorded
  *         programs.
- *  \param prematurestop If true, we only fetch the recording status.
+ *  \param allowReRecord This flag goes into the entry in the recorded
+ *                       programs. It also determines whether the
+ *                       recordedmarkup database table is updated with the
+ *                       program length.
  */
 void RecordingInfo::FinishedRecording(bool allowReRecord)
 {
@@ -1169,9 +1179,15 @@ void RecordingInfo::FinishedRecording(bool allowReRecord)
     {
         recstatus = RecStatus::Recorded;
 
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         uint starttime = recstartts.toTime_t();
         uint endtime   = recendts.toTime_t();
         int64_t duration = ((int64_t)endtime - (int64_t)starttime) * 1000000;
+#else
+        qint64 starttime = recstartts.toSecsSinceEpoch();
+        qint64 endtime   = recendts.toSecsSinceEpoch();
+        int64_t duration = (endtime - starttime) * 1000000;
+#endif
         SaveTotalDuration(duration);
 
         QString msg = "Finished recording";
@@ -1343,8 +1359,13 @@ void RecordingInfo::DeleteHistory(void)
 void RecordingInfo::ForgetHistory(void)
 {
     uint erecid = parentid ? parentid : recordid;
-    uint din = dupin ? dupin : kDupsInAll;
-    uint dmeth = dupmethod ? dupmethod : kDupCheckSubThenDesc;
+    uint din = dupin;
+    uint dmeth = dupmethod;
+
+    if (din == kDupsUnset)
+        din = kDupsInAll;
+    if (dmeth == kDupCheckUnset)
+        dmeth = kDupCheckSubThenDesc;
 
     MSqlQuery result(MSqlQuery::InitCon());
 
@@ -1553,6 +1574,8 @@ void RecordingInfo::SubstituteMatches(QString &str)
     str.replace("%RECSTATUS%", QString::number(recstatus));
     str.replace("%RECTYPE%", QString::number(rectype));
     str.replace("%REACTIVATE%", IsReactivated() ? "1" : "0");
+    str.replace("%INPUTNAME%", GetInputName());
+    str.replace("%CHANNUM%", GetChanNum());
 
     ProgramInfo::SubstituteMatches(str);
 }

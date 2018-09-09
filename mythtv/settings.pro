@@ -145,6 +145,7 @@ win32 {
             DESTDIR         = $$SRC_PATH_BARE/bin/debug
             QMAKE_LIBDIR   += $$SRC_PATH_BARE/bin/debug
             MOC_DIR         = debug/moc
+            OBJECTS_DIR     = debug/obj
 
             QMAKE_CXXFLAGS *= /MDd /MP /wd4100 /wd4996
 
@@ -158,6 +159,7 @@ win32 {
             DESTDIR         = $$SRC_PATH_BARE/bin/release
             QMAKE_LIBDIR   += $$SRC_PATH_BARE/bin/release
             MOC_DIR         = release/moc
+            OBJECTS_DIR     = release/obj
 
             QMAKE_CXXFLAGS *= /MD /MP /wd4100 /wd4996
 
@@ -266,6 +268,8 @@ win32 {
     # Allow compilation with Qt Embedded, if Qt is compiled without "-fno-rtti"
     QMAKE_CXXFLAGS -= -fno-exceptions -fno-rtti
 
+    MOC_DIR         = moc
+    OBJECTS_DIR     = obj
 }
 
 # Globals in static libraries need special treatment on OS X

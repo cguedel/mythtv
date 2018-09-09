@@ -43,7 +43,7 @@ void *ViewScheduled::RunViewScheduled(void *player, bool showTV)
     return NULL;
 }
 
-ViewScheduled::ViewScheduled(MythScreenStack *parent, TV* player, bool showTV)
+ViewScheduled::ViewScheduled(MythScreenStack *parent, TV* player, bool /*showTV*/)
              : ScheduleCommon(parent, "ViewScheduled"),
                m_conflictBool(false),
                m_conflictDate(QDate()),
@@ -80,8 +80,6 @@ bool ViewScheduled::Create()
 {
     if (!LoadWindowFromXML("schedule-ui.xml", "viewscheduled", this))
         return false;
-
-    //if (m_player && m_player->IsRunning() && showTV)
 
     m_groupList     = dynamic_cast<MythUIButtonList *> (GetChild("groups"));
     m_schedulesList = dynamic_cast<MythUIButtonList *> (GetChild("schedules"));
@@ -159,9 +157,8 @@ bool ViewScheduled::keyPressEvent(QKeyEvent *event)
         return true;
     }
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event,
+    bool handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event,
                                                      actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
@@ -598,7 +595,7 @@ void ViewScheduled::customEvent(QEvent *event)
 {
     if ((MythEvent::Type)(event->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QString message = me->Message();
 
         if (message != "SCHEDULE_CHANGE")

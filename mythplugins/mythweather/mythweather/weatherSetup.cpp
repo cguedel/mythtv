@@ -33,11 +33,8 @@ GlobalSetup::~GlobalSetup()
 
 bool GlobalSetup::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("weather-ui.xml", "global-setup", this);
-
+    bool foundtheme = LoadWindowFromXML("weather-ui.xml", "global-setup", this);
     if (!foundtheme)
         return false;
 
@@ -124,11 +121,8 @@ ScreenSetup::~ScreenSetup()
 
 bool ScreenSetup::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("weather-ui.xml", "screen-setup", this);
-
+    bool foundtheme = LoadWindowFromXML("weather-ui.xml", "screen-setup", this);
     if (!foundtheme)
         return false;
 
@@ -179,9 +173,8 @@ bool ScreenSetup::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Weather", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Weather", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -298,10 +291,9 @@ void ScreenSetup::loadData()
         // available to satisfy the requirements.
         if (m_sourceManager->findPossibleSources(type_strs, scriptList))
         {
-            ScriptInfo *script;
             for (int x = 0; x < scriptList.size(); x++)
             {
-                script = scriptList.at(x);
+                ScriptInfo *script = scriptList.at(x);
                 si->sources.append(script->name);
             }
             MythUIButtonListItem *item =
@@ -731,11 +723,8 @@ SourceSetup::~SourceSetup()
 
 bool SourceSetup::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("weather-ui.xml", "source-setup", this);
-
+    bool foundtheme = LoadWindowFromXML("weather-ui.xml", "source-setup", this);
     if (!foundtheme)
         return false;
 
@@ -918,11 +907,8 @@ LocationDialog::~LocationDialog()
 
 bool LocationDialog::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("weather-ui.xml", "setup-location", this);
-
+    bool foundtheme = LoadWindowFromXML("weather-ui.xml", "setup-location", this);
     if (!foundtheme)
         return false;
 

@@ -88,7 +88,8 @@ extern "C" {
  */
 
 SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
-                                   ChannelBase *channel)
+                                   ChannelBase *channel,
+                                   bool release_stream)
 {
     (void) cardtype;
     (void) db_cardnum;
@@ -96,19 +97,13 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
 
     SignalMonitor *signalMonitor = NULL;
 
-    {
-        QMutexLocker locker(avcodeclock);
-#if 0
-        avcodec_register_all();
-#endif
-    }
-
 #ifdef USING_DVB
     if (CardUtil::IsDVBInputType(cardtype))
     {
         DVBChannel *dvbc = dynamic_cast<DVBChannel*>(channel);
         if (dvbc)
-            signalMonitor = new DVBSignalMonitor(db_cardnum, dvbc);
+            signalMonitor = new DVBSignalMonitor(db_cardnum, dvbc,
+                                                 release_stream);
     }
 #endif
 
@@ -117,13 +112,15 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         V4LChannel *chan = dynamic_cast<V4LChannel*>(channel);
         if (chan)
-            signalMonitor = new AnalogSignalMonitor(db_cardnum, chan);
+            signalMonitor = new AnalogSignalMonitor(db_cardnum, chan,
+                                                    release_stream);
     }
     else if (cardtype.toUpper() == "V4L2ENC")
     {
         V4LChannel *chan = dynamic_cast<V4LChannel*>(channel);
         if (chan)
-            signalMonitor = new V4L2encSignalMonitor(db_cardnum, chan);
+            signalMonitor = new V4L2encSignalMonitor(db_cardnum, chan,
+                                                     release_stream);
     }
 #endif
 
@@ -132,7 +129,8 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         HDHRChannel *hdhrc = dynamic_cast<HDHRChannel*>(channel);
         if (hdhrc)
-            signalMonitor = new HDHRSignalMonitor(db_cardnum, hdhrc);
+            signalMonitor = new HDHRSignalMonitor(db_cardnum, hdhrc,
+                                                  release_stream);
     }
 #endif
 
@@ -141,7 +139,8 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         CetonChannel *cetonchan = dynamic_cast<CetonChannel*>(channel);
         if (cetonchan)
-            signalMonitor = new CetonSignalMonitor(db_cardnum, cetonchan);
+            signalMonitor = new CetonSignalMonitor(db_cardnum, cetonchan,
+                                                   release_stream);
     }
 #endif
 
@@ -150,7 +149,8 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         IPTVChannel *fbc = dynamic_cast<IPTVChannel*>(channel);
         if (fbc)
-            signalMonitor = new IPTVSignalMonitor(db_cardnum, fbc);
+            signalMonitor = new IPTVSignalMonitor(db_cardnum, fbc,
+                                                  release_stream);
     }
 #endif
 
@@ -168,7 +168,8 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         IPTVChannel *fbc = dynamic_cast<IPTVChannel*>(channel);
         if (fbc)
-            signalMonitor = new IPTVSignalMonitor(db_cardnum, fbc);
+            signalMonitor = new IPTVSignalMonitor(db_cardnum, fbc,
+                                                  release_stream);
     }
 #endif
 
@@ -177,7 +178,8 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         FirewireChannel *fc = dynamic_cast<FirewireChannel*>(channel);
         if (fc)
-            signalMonitor = new FirewireSignalMonitor(db_cardnum, fc);
+            signalMonitor = new FirewireSignalMonitor(db_cardnum, fc,
+                                                      release_stream);
     }
 #endif
 
@@ -186,7 +188,8 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         ASIChannel *fc = dynamic_cast<ASIChannel*>(channel);
         if (fc)
-            signalMonitor = new ASISignalMonitor(db_cardnum, fc);
+            signalMonitor = new ASISignalMonitor(db_cardnum, fc,
+                                                 release_stream);
     }
 #endif
 
@@ -194,12 +197,14 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
     {
         ExternalChannel *fc = dynamic_cast<ExternalChannel*>(channel);
         if (fc)
-            signalMonitor = new ExternalSignalMonitor(db_cardnum, fc);
+            signalMonitor = new ExternalSignalMonitor(db_cardnum, fc,
+                                                      release_stream);
     }
 
     if (!signalMonitor && channel)
     {
-        signalMonitor = new ScriptSignalMonitor(db_cardnum, channel);
+        signalMonitor = new ScriptSignalMonitor(db_cardnum, channel,
+                                                release_stream);
     }
 
     if (!signalMonitor)
@@ -218,18 +223,18 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
  *   Start() must be called to actually begin continuous
  *   signal monitoring.
  *
- *  \param db_cardnum Recorder number to monitor,
- *         if this is less than 0, SIGNAL events will not be
- *         sent to the frontend even if SetNotifyFrontend(true)
- *         is called.
- *  \param _channel      ChannelBase class for our monitoring
- *  \param wait_for_mask SignalMonitorFlags to start with.
+ *  \param _capturecardnum Recorder number to monitor, if this is less than 0,
+ *                         SIGNAL events will not be sent to the frontend even
+ *                         if SetNotifyFrontend(true) is called.
+ *  \param _channel        ChannelBase class for our monitoring
+ *  \param wait_for_mask   SignalMonitorFlags to start with.
  */
 SignalMonitor::SignalMonitor(int _capturecardnum, ChannelBase *_channel,
-                             uint64_t wait_for_mask)
+                             uint64_t wait_for_mask, bool _release_stream)
     : MThread("SignalMonitor"),
       channel(_channel),               pParent(NULL),
       capturecardnum(_capturecardnum), flags(wait_for_mask),
+      release_stream(_release_stream),
       update_rate(25),                 minimum_update_rate(5),
       update_done(false),              notify_frontend(true),
       tablemon(false),                 eit_scan(false),

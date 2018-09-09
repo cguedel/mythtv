@@ -15,6 +15,7 @@ typedef enum Formats
     kFilename      = 0x000100,      ///< Default UTC, "yyyyMMddhhmmss"
     kDateFull      = 0x000200,      ///< Default local time
     kDateShort     = 0x000400,      ///< Default local time
+    kDateEither    = kDateFull  | kDateShort,    ///< Default local time
     kTime          = 0x000800,      ///< Default local time
     kDateTimeFull  = kDateFull  | kTime, ///< Default local time
     kDateTimeShort = kDateShort | kTime, ///< Default local time
@@ -41,7 +42,11 @@ MBASE_PUBLIC QDateTime as_utc(const QDateTime &dt);
 MBASE_PUBLIC QDateTime fromString(const QString&);
 /// Converts dy in format to QDateTime
 MBASE_PUBLIC QDateTime fromString(const QString &dt, const QString &format);
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
 MBASE_PUBLIC QDateTime fromTime_t(uint seconds);
+#else
+MBASE_PUBLIC QDateTime fromSecsSinceEpoch(uint seconds);
+#endif
 /// Returns formatted string representing the time.
 MBASE_PUBLIC QString toString(
     const QDateTime &datetime, uint format = MythDate::kDateTimeFull);

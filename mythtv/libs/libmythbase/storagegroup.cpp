@@ -100,11 +100,12 @@ void StorageGroup::StaticInit(void)
  *
  *  \param group    The name of the Storage Group
  *  \param hostname The host whose Storage Group definition is desired
+ *  \param allowFallback allow the storage group search code to fall back if
+ *                  no dirs exist for the specified group/host
  */
 void StorageGroup::Init(const QString &group, const QString &hostname,
                         const bool allowFallback)
 {
-    bool found = false;
     m_groupname = group;    m_groupname.detach();
     m_hostname  = hostname; m_hostname.detach();
     m_allowFallback = allowFallback;
@@ -112,7 +113,7 @@ void StorageGroup::Init(const QString &group, const QString &hostname,
 
     StaticInit();
 
-    found = FindDirs(m_groupname, m_hostname, &m_dirlist);
+    bool found = FindDirs(m_groupname, m_hostname, &m_dirlist);
 
     if (!found && m_builtinGroups.contains(group))
     {
@@ -383,7 +384,7 @@ bool StorageGroup::FileExists(const QString &filename)
 
 
 // Returns a string list of details about the file
-// in the order EXISTS, DATE, SIZE
+// in the order FILENAME, DATE, SIZE
 QStringList StorageGroup::GetFileInfo(const QString &lfilename)
 {
     QString filename = lfilename;
@@ -405,7 +406,15 @@ QStringList StorageGroup::GetFileInfo(const QString &lfilename)
         QFileInfo fInfo(filename);
 
         details << filename;
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         details << QString("%1").arg(fInfo.lastModified().toTime_t());
+#else
+        if (fInfo.lastModified().isValid()) {
+            details << QString("%1").arg(fInfo.lastModified().toSecsSinceEpoch());
+        } else {
+            details << QString((uint)-1);
+        }
+#endif
         details << QString("%1").arg(fInfo.size());
     }
 

@@ -102,10 +102,11 @@ int AudioInputALSA::GetSamples(void* buf, uint nbytes)
             if (!recov)
                 break;
         }
+        [[clang::fallthrough]];
         case SND_PCM_STATE_PREPARED:
             if (AlsaBad(snd_pcm_start(pcm_handle), "pcm start failed"))
                  break;
-            // else fall through
+            [[clang::fallthrough]];
         case SND_PCM_STATE_RUNNING:
             bytes_read = PcmRead(buf, nbytes);
             break;
@@ -271,7 +272,9 @@ int AudioInputALSA::PcmRead(void* buf, uint nbytes)
                     break;
                 case -EINTR:
                 case -EPIPE:
+#if ESTRPIPE != EPIPE
                 case -ESTRPIPE:
+#endif
                     Recovery(nread);
                     break;
                 default:
@@ -300,14 +303,18 @@ bool AudioInputALSA::Recovery(int err)
     if (err > 0)
         err = -err;
     bool isgood = false;
+    // cppcheck-suppress variableScope
     bool suspense = false;
     switch (err)
     {
         case -EINTR:
             isgood = true; // nothin' to see here
             break;
+#if ESTRPIPE != EPIPE
         case -ESTRPIPE:
             suspense = true;
+            [[clang::fallthrough]];
+#endif
         case -EPIPE:
         {
             int ret = snd_pcm_prepare(pcm_handle);

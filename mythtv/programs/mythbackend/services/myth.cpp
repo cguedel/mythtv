@@ -45,6 +45,7 @@
 #include "mythtimezone.h"
 #include "mythdate.h"
 #include "mythversion.h"
+#include "serviceUtil.h"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -715,14 +716,9 @@ bool Myth::PutSetting( const QString &sHostName,
                        const QString &sKey,
                        const QString &sValue )
 {
-    bool bResult = false;
-
     if (!sKey.isEmpty())
     {
-        if ( gCoreContext->SaveSettingOnHost( sKey, sValue, sHostName ) )
-            bResult = true;
-
-        return bResult;
+        return gCoreContext->SaveSettingOnHost( sKey, sValue, sHostName );
     }
 
     throw ( QString( "Key Required" ));
@@ -736,49 +732,11 @@ bool Myth::ChangePassword( const QString   &sUserName,
                            const QString   &sOldPassword,
                            const QString   &sNewPassword )
 {
-    bool bResult = false;
+    LOG(VB_GENERAL, LOG_NOTICE, "ChangePassword is deprecated, use "
+                                "ManageDigestUser.");
 
-    if (sUserName.isEmpty())
-    {
-        throw ( QString( "UserName not supplied when trying to change "
-                         "password." ) );
-    }
-
-    if (sOldPassword.isEmpty())
-    {
-        throw ( QString( "Old Password not supplied when trying to change "
-                         "password for '%1'." ).arg(sUserName) );
-    }
-
-    if (sNewPassword.isEmpty())
-    {
-        throw ( QString( "New Password not supplied when trying to change "
-                         "password for '%1'." ).arg(sUserName) );
-    }
-
-    QCryptographicHash crypto( QCryptographicHash::Sha1 );
-
-    crypto.addData( sOldPassword.toUtf8() );
-
-    QString sPasswordHash( crypto.result().toBase64() );
-
-    if ( sPasswordHash != gCoreContext->GetSetting( "HTTP/Protected/Password", ""))
-    {
-        throw ( QString( "Incorrect Old Password supplied when trying to "
-                         "change password for '%1'." ).arg(sUserName) );
-    }
-
-    crypto.reset();
-    crypto.addData( sNewPassword.toUtf8() );
-
-    if (gCoreContext->SaveSettingOnHost( "HTTP/Protected/Password", crypto.result().toBase64(),
-                                    QString() ) )
-    {
-        gCoreContext->ClearSettingsCache();
-        bResult = true;
-    }
-
-    return bResult;
+    return ( ManageDigestUser("ChangePassword", sUserName, sOldPassword,
+                              sNewPassword, "") );
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -971,11 +929,9 @@ bool Myth::BackupDatabase(void)
 
 bool Myth::CheckDatabase( bool repair )
 {
-    bool bResult = false;
-
     LOG(VB_GENERAL, LOG_NOTICE, "Performing API invoked DB Check.");
 
-    bResult = DBUtil::CheckTables(repair);
+    bool bResult = DBUtil::CheckTables(repair);
 
     if (bResult)
         LOG(VB_GENERAL, LOG_NOTICE, "Database check complete.");
@@ -991,12 +947,10 @@ bool Myth::CheckDatabase( bool repair )
 
 bool Myth::ProfileSubmit()
 {
-    bool bResult = false;
-
     HardwareProfile profile;
     LOG(VB_GENERAL, LOG_NOTICE, "Profile Submission...");
     profile.GenerateUUIDs();
-    bResult = profile.SubmitProfile();
+    bool bResult = profile.SubmitProfile();
     if (bResult)
         LOG(VB_GENERAL, LOG_NOTICE, "Profile Submitted.");
 
@@ -1009,12 +963,10 @@ bool Myth::ProfileSubmit()
 
 bool Myth::ProfileDelete()
 {
-    bool bResult = false;
-
     HardwareProfile profile;
     LOG(VB_GENERAL, LOG_NOTICE, "Profile Deletion...");
     profile.GenerateUUIDs();
-    bResult = profile.DeleteProfile();
+    bool bResult = profile.DeleteProfile();
     if (bResult)
         LOG(VB_GENERAL, LOG_NOTICE, "Profile Deleted.");
 
@@ -1101,4 +1053,94 @@ DTC::BackendInfo* Myth::GetBackendInfo( void )
 
     return pInfo;
 
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//
+/////////////////////////////////////////////////////////////////////////////
+
+bool Myth::ManageDigestUser( const QString &sAction,
+                             const QString &sUserName,
+                             const QString &sPassword,
+                             const QString &sNewPassword,
+                             const QString &sAdminPassword )
+{
+
+    DigestUserActions sessionAction;
+
+    if (sAction == "Add")
+        sessionAction = DIGEST_USER_ADD;
+    else if (sAction == "Remove")
+        sessionAction = DIGEST_USER_REMOVE;
+    else if (sAction == "ChangePassword")
+        sessionAction = DIGEST_USER_CHANGE_PW;
+    else
+    {
+        LOG(VB_GENERAL, LOG_ERR, QString("Action must be Add, Remove or "
+                                         "ChangePassword, not '%1'")
+                                         .arg(sAction));
+        return false;
+    }
+
+    return gCoreContext->GetSessionManager()->ManageDigestUser(sessionAction,
+                                                               sUserName,
+                                                               sPassword,
+                                                               sNewPassword,
+                                                               sAdminPassword);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//
+/////////////////////////////////////////////////////////////////////////////
+
+bool Myth::ManageUrlProtection( const QString &sServices,
+                                const QString &sAdminPassword )
+{
+
+    MythSessionManager *sessionManager =  gCoreContext->GetSessionManager();
+
+    if (!sessionManager->IsValidUser("admin"))
+    {
+        LOG(VB_GENERAL, LOG_ERR, QString("Backend has no '%1' user!")
+                                         .arg("admin"));
+        return false;
+    }
+
+    if (sessionManager->CreateDigest("admin", sAdminPassword) !=
+            sessionManager->GetPasswordDigest("admin"))
+    {
+        LOG(VB_GENERAL, LOG_ERR, QString("Incorrect password for user: %1")
+                                         .arg("admin"));
+        return false;
+    }
+
+    QStringList serviceList = sServices.split(",");
+
+    serviceList.removeDuplicates();
+
+    QStringList protectedURLs;
+
+    if (serviceList.size() == 1 && serviceList.first() == "All")
+        for (QString service : KnownServices)
+            protectedURLs << '/' + service;
+    else if (serviceList.size() == 1 && serviceList.first() == "None")
+        protectedURLs << "Unprotected";
+    else
+    {
+        for (QString service : serviceList)
+            if (KnownServices.contains(service))
+                protectedURLs << '/' + service;
+            else
+                LOG(VB_GENERAL, LOG_ERR, QString("Invalid service name: '%1'")
+                                                  .arg(service));
+    }
+
+    if (protectedURLs.isEmpty())
+    {
+        LOG(VB_GENERAL, LOG_ERR, "No valid Services were found");
+        return false;
+    }
+
+    return gCoreContext->SaveSettingOnHost("HTTP/Protected/Urls",
+                                           protectedURLs.join(';'), "");
 }

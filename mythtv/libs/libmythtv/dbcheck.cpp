@@ -3340,25 +3340,25 @@ NULL
 
     if (dbver == "1346")
     {
-            QString master;
-            // Create new MasterServerName setting
-            if (gCoreContext->IsMasterHost())
-                master =
-                "insert into settings (value,data,hostname) "
-                "values('MasterServerName','"
-                   + gCoreContext->GetHostName() + "', null);";
-            else
-                master =
-                "insert into settings (value,data,hostname) "
-                "select 'MasterServerName', b.hostname, null "
-                "from settings a, settings b "
-                "where a.value = 'MasterServerIP' "
-                "and b.value in ('BackendServerIP','BackendServerIP6')"
-                "and a.data = b.data;";
+        QString master;
+        // Create new MasterServerName setting
+        if (gCoreContext->IsMasterHost())
+            master =
+            "insert into settings (value,data,hostname) "
+            "values('MasterServerName','"
+                + gCoreContext->GetHostName() + "', null);";
+        else
+            master =
+            "insert into settings (value,data,hostname) "
+            "select 'MasterServerName', b.hostname, null "
+            "from settings a, settings b "
+            "where a.value = 'MasterServerIP' "
+            "and b.value in ('BackendServerIP','BackendServerIP6')"
+            "and a.data = b.data;";
 
         const char *updates[] = {
             // Create new MasterServerName setting
-            master.toUtf8(),
+            master.toLocal8Bit().constData(),
             // Create new BackendServerAddr setting for each backend server
             // Assume using IPV4 value.
             "insert into settings (value,data,hostname) "
@@ -3404,7 +3404,18 @@ NULL
         if (!performActualUpdate(updates, "1348", dbver))
             return false;
     }
+    /*
+     * TODO when consolidating database version 1348 into initialize, you can delete
+     * from mythtv/libs/libmythtv/tv_play.cpp the upgrade code in the lines
+     * preceding REG_KEY for ACTION_SETBOOKMARK and ACTION_TOGGLEBOOKMARK
+     */
 
+    /*
+     * TODO the following settings are no more, clean them up with the next schema change
+     * to avoid confusion by stale settings in the database
+     *
+     * AltClearSavedPosition
+     */
     return true;
 }
 

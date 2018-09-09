@@ -121,6 +121,20 @@ class FreeToAirOnly : public TransMythUICheckBoxSetting
     };
 };
 
+class AddFullTS : public TransMythUICheckBoxSetting
+{
+  public:
+    AddFullTS()
+    {
+        setValue(false);
+        setLabel(QObject::tr("Add full Transport Stream channels"));
+        setHelpText(
+            QObject::tr(
+                "If set, Create MPTS channels, which allow "
+                "recording of the full, unaltered, transport stream."));
+    };
+};
+
 class TrustEncSISetting : public TransMythUICheckBoxSetting
 {
   public:
@@ -161,7 +175,7 @@ class ScanFrequency: public TransTextEditSetting
 class ScanSymbolRateDVBS: public TransMythUIComboBoxSetting
 {
   public:
-    ScanSymbolRateDVBS()
+    ScanSymbolRateDVBS() : TransMythUIComboBoxSetting(true)
     {
         setLabel(QObject::tr("Symbol Rate"));
         setHelpText(
@@ -171,6 +185,7 @@ class ScanSymbolRateDVBS: public TransMythUIComboBoxSetting
                 "million symbols per second."));
         addSelection("3333000");
         addSelection("22000000");
+        addSelection("22500000");
         addSelection("23000000");
         addSelection("27500000", "27500000", true);
         addSelection("28000000");
@@ -183,7 +198,7 @@ class ScanSymbolRateDVBS: public TransMythUIComboBoxSetting
 class ScanSymbolRateDVBC: public TransMythUIComboBoxSetting
 {
   public:
-    ScanSymbolRateDVBC()
+    ScanSymbolRateDVBC() : TransMythUIComboBoxSetting(true)
     {
         setLabel(QObject::tr("Symbol Rate"));
         setHelpText(

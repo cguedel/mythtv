@@ -30,10 +30,12 @@
  *  \param _channel CetonChannel for card
  *  \param _flags   Flags to start with
  */
-CetonSignalMonitor::CetonSignalMonitor(
-    int db_cardnum, CetonChannel* _channel, uint64_t _flags) :
-    DTVSignalMonitor(db_cardnum, _channel, _flags),
-    streamHandlerStarted(false), streamHandler(NULL)
+CetonSignalMonitor::CetonSignalMonitor(int db_cardnum,
+                                       CetonChannel* _channel,
+                                       bool _release_stream,
+                                       uint64_t _flags)
+    : DTVSignalMonitor(db_cardnum, _channel, _release_stream, _flags),
+      streamHandlerStarted(false), streamHandler(NULL)
 {
     LOG(VB_CHANNEL, LOG_INFO, LOC + "ctor");
 
@@ -96,6 +98,7 @@ void CetonSignalMonitor::UpdateValues(void)
         return;
     }
 
+    // cppcheck-suppress variableScope
     uint sig = 100;  // TODO find some way to actually monitor signal level
 
     // Set SignalMonitorValues from info from card.

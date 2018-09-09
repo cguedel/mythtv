@@ -48,18 +48,22 @@
 /////////////////////////////////////////////////////////////////////////////
 
 DTC::ChannelInfoList* Channel::GetChannelInfoList( uint nSourceID,
+                                                   uint nChannelGroupID,
                                                    uint nStartIndex,
                                                    uint nCount,
                                                    bool bOnlyVisible,
-                                                   bool bDetails )
+                                                   bool bDetails,
+                                                   bool bOrderByName,
+                                                   bool bGroupByCallsign )
 {
     ChannelInfoList chanList;
 
     uint nTotalAvailable = 0;
+
     chanList = ChannelUtil::LoadChannels( 0, 0, nTotalAvailable, bOnlyVisible,
-                                          ChannelUtil::kChanOrderByChanNum,
-                                          ChannelUtil::kChanGroupByChanid,
-                                          nSourceID ); //, nChanGroupID
+                                          bOrderByName ? ChannelUtil::kChanOrderByName : ChannelUtil::kChanOrderByChanNum,
+                                          bGroupByCallsign ? ChannelUtil::kChanGroupByCallsign : ChannelUtil::kChanGroupByChanid,
+                                          nSourceID, nChannelGroupID);
 
     // ----------------------------------------------------------------------
     // Build Response
@@ -120,7 +124,7 @@ DTC::ChannelInfoList* Channel::GetChannelInfoList( uint nSourceID,
 
 DTC::ChannelInfo* Channel::GetChannelInfo( uint nChanID )
 {
-    if (nChanID <= 0)
+    if (nChanID == 0)
         throw( QString("Channel ID appears invalid."));
 
     DTC::ChannelInfo *pChannelInfo = new DTC::ChannelInfo();
@@ -152,9 +156,7 @@ bool Channel::UpdateDBChannel( uint          MplexID,
                                const QString &XMLTVID,
                                const QString &DefaultAuthority )
 {
-    bool bResult = false;
-
-    bResult = ChannelUtil::UpdateChannel( MplexID, SourceID, ChannelID,
+    bool bResult = ChannelUtil::UpdateChannel( MplexID, SourceID, ChannelID,
                              CallSign, ChannelName, ChannelNumber,
                              ServiceID, ATSCMajorChannel, ATSCMinorChannel,
                              UseEIT, !visible, false, FrequencyID,
@@ -180,9 +182,7 @@ bool Channel::AddDBChannel( uint          MplexID,
                             const QString &XMLTVID,
                             const QString &DefaultAuthority )
 {
-    bool bResult = false;
-
-    bResult = ChannelUtil::CreateChannel( MplexID, SourceID, ChannelID,
+    bool bResult = ChannelUtil::CreateChannel( MplexID, SourceID, ChannelID,
                              CallSign, ChannelName, ChannelNumber,
                              ServiceID, ATSCMajorChannel, ATSCMinorChannel,
                              UseEIT, !visible, false, FrequencyID,
@@ -193,9 +193,7 @@ bool Channel::AddDBChannel( uint          MplexID,
 
 bool Channel::RemoveDBChannel( uint nChannelID )
 {
-    bool bResult = false;
-
-    bResult = ChannelUtil::DeleteChannel( nChannelID );
+    bool bResult = ChannelUtil::DeleteChannel( nChannelID );
 
     return bResult;
 }
@@ -317,9 +315,7 @@ bool Channel::UpdateVideoSource( uint nSourceId,
                                  const QString &sConfigPath,
                                  int           nNITId )
 {
-    bool bResult = false;
-
-    bResult = SourceUtil::UpdateSource(nSourceId, sSourceName, sGrabber, sUserId, sFreqTable,
+    bool bResult = SourceUtil::UpdateSource(nSourceId, sSourceName, sGrabber, sUserId, sFreqTable,
                                        sLineupId, sPassword, bUseEIT, sConfigPath,
                                        nNITId);
 
@@ -353,9 +349,7 @@ int  Channel::AddVideoSource( const QString &sSourceName,
 
 bool Channel::RemoveVideoSource( uint nSourceID )
 {
-    bool bResult = false;
-
-    bResult = SourceUtil::DeleteSource( nSourceID );
+    bool bResult = SourceUtil::DeleteSource( nSourceID );
 
     return bResult;
 }
@@ -368,15 +362,13 @@ DTC::LineupList* Channel::GetDDLineupList( const QString &sSource,
                                            const QString &sUserId,
                                            const QString &sPassword )
 {
-    int source = 0;
-
     DTC::LineupList *pLineups = new DTC::LineupList();
 
     if (sSource.toLower() == "schedulesdirect1" ||
         sSource.toLower() == "schedulesdirect" ||
         sSource.isEmpty())
     {
-        source = 1;
+        int source = 1;
         DataDirectProcessor ddp(source, sUserId, sPassword);
         if (!ddp.GrabLineupsOnly())
         {

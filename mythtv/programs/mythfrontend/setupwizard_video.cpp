@@ -43,11 +43,8 @@ VideoSetupWizard::VideoSetupWizard(MythScreenStack *parent,
 
 bool VideoSetupWizard::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("config-ui.xml", "videowizard", this);
-
+    bool foundtheme = LoadWindowFromXML("config-ui.xml", "videowizard", this);
     if (!foundtheme)
         return false;
 
@@ -158,7 +155,7 @@ bool VideoSetupWizard::keyPressEvent(QKeyEvent *event)
 
     bool handled = false;
 
-    if (!handled && MythScreenType::keyPressEvent(event))
+    if (MythScreenType::keyPressEvent(event))
         handled = true;
 
     return handled;
@@ -244,7 +241,7 @@ void VideoSetupWizard::customEvent(QEvent *e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)e;
+        MythEvent *me = static_cast<MythEvent *>(e);
         QStringList tokens = me->Message().split(" ", QString::SkipEmptyParts);
 
         if (tokens.isEmpty())

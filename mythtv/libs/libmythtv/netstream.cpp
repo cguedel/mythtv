@@ -335,6 +335,7 @@ static qlonglong inline ContentRange(const QNetworkReply *reply,
     return len;
 }
 
+#if 0
 static bool inline RequestRange(const QNetworkRequest &request,
     qlonglong &first, qlonglong &last)
 {
@@ -353,6 +354,7 @@ static bool inline RequestRange(const QNetworkRequest &request,
 
     return true;
 }
+#endif
 
 // signal from QNetworkReply
 void NetStream::slotReadyRead()
@@ -845,8 +847,11 @@ bool NAMThread::NewRequest(QEvent *event)
     {
     case NetStreamRequest::kType:
         return StartRequest(dynamic_cast< NetStreamRequest* >(event));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch"
     case NetStreamAbort::kType:
         return AbortRequest(dynamic_cast< NetStreamAbort* >(event));
+#pragma GCC diagnostic pop
     default:
         break;
     }

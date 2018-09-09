@@ -165,11 +165,9 @@ void CustomEdit::loadData(void)
 
 QString CustomEdit::evaluate(QString clause)
 {
-    int s0=0;
     int e0=0;
-
     while (1) {
-        s0 = clause.indexOf (QRegExp("\\{[A-Z]+\\}"), e0);
+        int s0 = clause.indexOf (QRegExp("\\{[A-Z]+\\}"), e0);
 
         if (s0 < 0)
             break;
@@ -927,9 +925,8 @@ bool CustomEdit::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {

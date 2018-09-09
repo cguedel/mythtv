@@ -12,9 +12,8 @@
 #include "mythsocket.h"
 #include "mythcorecontext.h"
 
-class MBASE_PUBLIC FileSystemInfo : public QObject
+class MBASE_PUBLIC FileSystemInfo
 {
-    Q_OBJECT
   public:
     FileSystemInfo();
     FileSystemInfo(const FileSystemInfo &other);
@@ -24,7 +23,7 @@ class MBASE_PUBLIC FileSystemInfo : public QObject
             QStringList::const_iterator end);
     explicit FileSystemInfo(const QStringList &slist);
 
-   ~FileSystemInfo(void) {};
+    virtual ~FileSystemInfo(void) {};
 
     FileSystemInfo &operator=(const FileSystemInfo &other);
     virtual void clone(const FileSystemInfo &other);

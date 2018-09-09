@@ -27,7 +27,7 @@ class VideoOutputVDPAU : public VideoOutput
               WId winid, const QRect &win_rect, MythCodecID codec_id);
     virtual void* GetDecoderContext(unsigned char* buf, uint8_t*& id);
     bool SetDeinterlacingEnabled(bool interlaced);
-    bool SetupDeinterlace(bool interlaced, const QString& ovrf="");
+    bool SetupDeinterlace(bool interlaced, const QString& overridefilter="");
     bool ApproveDeintFilter(const QString& filtername) const;
     void ProcessFrame(VideoFrame *frame, OSD *osd,
                       FilterChain *filterList,
@@ -69,14 +69,15 @@ class VideoOutputVDPAU : public VideoOutput
     virtual bool GetScreenShot(int width = 0, int height = 0,
                                QString filename = "");
 
-    virtual bool CanVisualise(AudioPlayer *audio, MythRender *render)
+    virtual bool CanVisualise(AudioPlayer *audio, MythRender */*render*/)
         { return VideoOutput::CanVisualise(audio, m_render);       }
-    virtual bool SetupVisualisation(AudioPlayer *audio, MythRender *render,
+    virtual bool SetupVisualisation(AudioPlayer *audio, MythRender */*render*/,
                                     const QString &name)
         { return VideoOutput::SetupVisualisation(audio, m_render, name); }
     virtual QStringList GetVisualiserList(void);
     virtual void ClearDummyFrame(VideoFrame* frame);
     virtual void SetVideoFlip(void);
+    MythRenderVDPAU* getRender() const { return m_render; }
 
   private:
     virtual bool hasFullScreenOSD(void) const { return true; }
@@ -107,7 +108,7 @@ class VideoOutputVDPAU : public VideoOutput
 
     Window               m_win;
     MythRenderVDPAU     *m_render;
-    AVVDPAUContext       m_context;
+    AVVDPAUContext      *m_context;
 
     uint                 m_decoder_buffer_size;
     uint                 m_process_buffer_size;

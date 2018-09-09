@@ -41,7 +41,7 @@ static QString get_lineup_type(uint sourceid);
 static QString get_setting(QString line, QString key);
 static bool    has_setting(QString line, QString key);
 static QString html_escape(QString str);
-static void    get_atsc_stuff(QString channum, int sourceid, int freqid,
+static void    get_atsc_stuff(QString channum, int freqid,
                               int &major, int &minor, long long &freq);
 static QString process_dd_station(uint sourceid,
                                   QString  chan_major, QString  chan_minor,
@@ -527,9 +527,7 @@ DataDirectProcessor::DataDirectProcessor(uint lp, QString user, QString pass) :
     m_listingsProvider(lp % DD_PROVIDER_COUNT),
     m_userid(user),                   m_password(pass),
     m_tmpDir("/tmp"),                 m_cacheData(false),
-    m_inputFilename(""),              m_tmpPostFile(QString::null),
-    m_tmpResultFile(QString::null),   m_tmpDDPFile(QString::null),
-    m_cookieFile(QString::null),      m_cookieFileDT()
+    m_inputFilename(""),              m_cookieFileDT()
 {
     {
         QMutexLocker locker(&user_agent_lock);
@@ -794,7 +792,7 @@ bool DataDirectProcessor::UpdateChannelsUnsafe(
         uint    freqid     = dd_station_info.value(3).toUInt();
         QString chan_major = dd_station_info.value(4).toString();
         QString chan_minor = dd_station_info.value(5).toString();
-        QString tvformat   = QString::null;
+        QString tvformat;
         QString channum    = process_dd_station(
             sourceid, chan_major, chan_minor, tvformat, freqid);
 
@@ -1174,7 +1172,7 @@ bool DataDirectProcessor::GrabData(const QDateTime &pstartDate,
     QString err = "";
     QString ddurl = m_providers[m_listingsProvider].webServiceURL;
     QString inputfile = m_inputFilename;
-    QString cache_dd_data = QString::null;
+    QString cache_dd_data;
 
     if (m_cacheData)
     {
@@ -1769,7 +1767,7 @@ QString DataDirectProcessor::GetRawUDLID(const QString &lineupid) const
 {
     RawLineupMap::const_iterator it = m_rawLineups.find(lineupid);
     if (it == m_rawLineups.end())
-        return QString::null;
+        return QString();
     return (*it).udl_id;
 }
 
@@ -1777,7 +1775,7 @@ QString DataDirectProcessor::GetRawZipCode(const QString &lineupid) const
 {
     RawLineupMap::const_iterator it = m_rawLineups.find(lineupid);
     if (it == m_rawLineups.end())
-        return QString::null;
+        return QString();
     return (*it).zipcode;
 }
 
@@ -1928,7 +1926,7 @@ bool DataDirectProcessor::ParseLineups(const QString &documentFile)
 
     QTextStream stream(&file);
     bool in_form = false;
-    QString get_action = QString::null;
+    QString get_action;
     QMap<QString,QString> name_value;
 
     m_rawLineups.clear();
@@ -2123,18 +2121,18 @@ static QString get_setting(QString line, QString key)
 {
     QString llow = line.toLower();
     QString kfind = key + "=\"";
-    int beg = llow.indexOf(kfind), end = -1;
+    int beg = llow.indexOf(kfind);
 
     if (beg >= 0)
     {
-        end = llow.indexOf("\"", beg + kfind.length());
+        int end = llow.indexOf("\"", beg + kfind.length());
         return line.mid(beg + kfind.length(), end - beg - kfind.length());
     }
 
     kfind = key + "=";
     beg = llow.indexOf(kfind);
     if (beg < 0)
-        return QString::null;
+        return QString();
 
     int i = beg + kfind.length();
     while (i < line.length() && !line[i].isSpace() && line[i] != '>')
@@ -2143,7 +2141,7 @@ static QString get_setting(QString line, QString key)
     if (i < line.length() && (line[i].isSpace() || line[i] == '>'))
         return line.mid(beg + kfind.length(), i - beg - kfind.length());
 
-    return QString::null;
+    return QString();
 }
 
 static bool has_setting(QString line, QString key)
@@ -2151,7 +2149,7 @@ static bool has_setting(QString line, QString key)
     return (line.toLower().indexOf(key) >= 0);
 }
 
-static void get_atsc_stuff(QString channum, int sourceid, int freqid,
+static void get_atsc_stuff(QString channum, int freqid,
                            int &major, int &minor, long long &freq)
 {
     major = freqid;
@@ -2281,8 +2279,7 @@ static uint update_channel_basic(uint    sourceid,   bool    insert,
     // The channel doesn't exist in the DB, insert it...
     int mplexid = -1, majorC, minorC, chanid = 0;
     long long freq = -1;
-    get_atsc_stuff(channum, sourceid, freqid,
-                   majorC, minorC, freq);
+    get_atsc_stuff(channum, freqid, majorC, minorC, freq);
 
     if (minorC > 0 && freq >= 0)
         mplexid = ChannelUtil::CreateMultiplex(sourceid, "atsc", freq, "8vsb");
@@ -2425,7 +2422,8 @@ QByteArray gUncompress(const QByteArray &data)
 
         switch (ret) {
         case Z_NEED_DICT:
-            ret = Z_DATA_ERROR;     // and fall through
+            ret = Z_DATA_ERROR;
+            [[clang::fallthrough]];
         case Z_DATA_ERROR:
         case Z_MEM_ERROR:
             (void)inflateEnd(&strm);

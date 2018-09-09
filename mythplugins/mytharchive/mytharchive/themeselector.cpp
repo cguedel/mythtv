@@ -53,11 +53,8 @@ DVDThemeSelector::~DVDThemeSelector(void)
 
 bool DVDThemeSelector::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("mythburn-ui.xml", "themeselector", this);
-
+    bool foundtheme = LoadWindowFromXML("mythburn-ui.xml", "themeselector", this);
     if (!foundtheme)
         return false;
 
@@ -149,7 +146,6 @@ void DVDThemeSelector::getThemeList(void)
         filters << "*";
         QFileInfoList list = d.entryInfoList(filters, QDir::Dirs, QDir::Name);
 
-        int count = 0;
         for (int x = 0; x < list.size(); x++)
         {
             QFileInfo fi = list.at(x);
@@ -158,7 +154,6 @@ void DVDThemeSelector::getThemeList(void)
                 theme_list.append(fi.fileName());
                 QString filename = fi.fileName().replace(QString("_"), QString(" "));
                 new MythUIButtonListItem(theme_selector, filename);
-                ++count;
             }
         }
     }

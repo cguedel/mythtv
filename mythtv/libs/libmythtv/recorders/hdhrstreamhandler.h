@@ -23,7 +23,11 @@ class DeviceReadBuffer;
 
 // HDHomeRun headers
 #ifdef USING_HDHOMERUN
-#include "hdhomerun.h"
+#ifdef HDHOMERUN_LIBPREFIX
+#include "libhdhomerun/hdhomerun.h"
+#else
+#include "hdhomerun/hdhomerun.h"
+#endif
 #else
 struct hdhomerun_device_t { int dummy; };
 #endif
@@ -50,8 +54,8 @@ class HDHRStreamHandler : public StreamHandler
     static void Return(HDHRStreamHandler * & ref, int recorder_id = -1);
 
     virtual void AddListener(MPEGStreamData *data,
-                             bool allow_section_reader = false,
-                             bool needs_drb            = false,
+                             bool /*allow_section_reader*/ = false,
+                             bool /*needs_drb*/            = false,
                              QString output_file       = QString())
     {
         StreamHandler::AddListener(data, false, false, output_file);

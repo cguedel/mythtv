@@ -60,10 +60,9 @@ LyricsView::~LyricsView()
 bool LyricsView::Create(void)
 {
     QString windowName = gPlayer->getPlayMode() == MusicPlayer::PLAYMODE_RADIO ? "streamlyricsview" : "trackslyricsview";
-    bool err = false;
 
     // Load the theme for this screen
-    err = LoadWindowFromXML("music-ui.xml", windowName, this);
+    bool err = LoadWindowFromXML("music-ui.xml", windowName, this);
 
     if (!err)
         return false;
@@ -292,7 +291,7 @@ bool LyricsView::keyPressEvent(QKeyEvent *event)
         {
             handled = GetMythMainWindow()->TranslateKeyPress("Global", event, actions);
             if (actions.contains("UP") || actions.contains("DOWN") ||
-                actions.contains("PAGEUP") || actions.contains("PAGEUP"))
+                actions.contains("PAGEUP") || actions.contains("PAGEDOWN"))
                 m_autoScroll = false;
         }
 
@@ -518,11 +517,8 @@ EditLyricsDialog::EditLyricsDialog(
 
 bool EditLyricsDialog::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("music-ui.xml", "editlyrics", this);
-
+    bool foundtheme = LoadWindowFromXML("music-ui.xml", "editlyrics", this);
     if (!foundtheme)
         return false;
 

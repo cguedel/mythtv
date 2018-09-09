@@ -350,6 +350,8 @@ void framecopy(VideoFrame* dst, const VideoFrame* src, bool useSSE)
                 asm volatile ("emms");
                 return;
             }
+#else
+            Q_UNUSED(useSSE);
 #endif
             splitplanes(dst->buf + dst->offsets[1], dst->pitches[1],
                         dst->buf + dst->offsets[2], dst->pitches[2],
@@ -585,6 +587,9 @@ MythUSWCCopy::MythUSWCCopy(int width, bool nocache)
     {
         allocateCache(width);
     }
+#else
+    Q_UNUSED(width);
+    Q_UNUSED(nocache);
 #endif
 }
 
@@ -741,7 +746,6 @@ void MythUSWCCopy::copy(VideoFrame *dst, const VideoFrame *src)
 }
 
 /**
- * \fn resetUSWCDetection
  * reset USWC detection. USWC detection will be made during the next copy
  */
 void MythUSWCCopy::resetUSWCDetection(void)
@@ -757,7 +761,6 @@ void MythUSWCCopy::allocateCache(int width)
 }
 
 /**
- * \fn setUSWC
  * disable USWC detection. If true: USWC code will always be used, otherwise
  * will use generic SSE code (faster with non-USWC memory
  */
@@ -767,13 +770,14 @@ void MythUSWCCopy::setUSWC(bool uswc)
 }
 
 /**
- * \fn reset
  * Will reset the cache for a frame with "width" and reset USWC detection.
  */
 void MythUSWCCopy::reset(int width)
 {
 #if ARCH_X86
     allocateCache(width);
+#else
+    Q_UNUSED(width);
 #endif
     resetUSWCDetection();
 }

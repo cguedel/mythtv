@@ -311,8 +311,8 @@ class TunerCardAudioInput : public CaptureCardComboBoxSetting
     Q_OBJECT
   public:
     TunerCardAudioInput(const CaptureCard &parent,
-                        QString dev  = QString::null,
-                        QString type = QString::null);
+                        QString dev  = QString(),
+                        QString type = QString());
 
   public slots:
     int fillSelections(const QString &device);
@@ -877,7 +877,7 @@ class CardInput : public GroupSetting
     Q_OBJECT
   public:
     CardInput(const QString & cardtype, const QString & device,
-              bool is_new_input, int cardid);
+              int cardid);
     ~CardInput();
 
     int getInputID(void) const { return id->intValue(); };
@@ -921,7 +921,7 @@ class CardInput : public GroupSetting
 class HDHomeRunDeviceID;
 class HDHomeRunTunerIndex;
 
-class HDHomeRunIP : public GroupSetting
+class HDHomeRunIP : public MythUITextEditSetting
 {
     Q_OBJECT
 
@@ -942,7 +942,7 @@ class HDHomeRunIP : public GroupSetting
     QString _oldValue;
 };
 
-class HDHomeRunTunerIndex : public GroupSetting
+class HDHomeRunTunerIndex : public MythUITextEditSetting
 {
     Q_OBJECT
 
@@ -973,7 +973,8 @@ class HDHomeRunDeviceIDList : public TransMythUIComboBoxSetting
                           StandardSetting *desc,
                           HDHomeRunIP       *cardip,
                           HDHomeRunTunerIndex *cardtuner,
-                          HDHomeRunDeviceList *devicelist);
+                          HDHomeRunDeviceList *devicelist,
+                          const CaptureCard &parent);
 
     void fillSelections(const QString &current);
 
@@ -988,6 +989,7 @@ class HDHomeRunDeviceIDList : public TransMythUIComboBoxSetting
     HDHomeRunIP         *_cardip;
     HDHomeRunTunerIndex *_cardtuner;
     HDHomeRunDeviceList *_devicelist;
+    const CaptureCard &m_parent;
 
     QString              _oldValue;
 };
@@ -1016,7 +1018,7 @@ class HDHomeRunDeviceID : public MythUITextEditSetting
 class VBoxDeviceID;
 class VBoxTunerIndex;
 
-class VBoxIP : public GroupSetting
+class VBoxIP : public MythUITextEditSetting
 {
     Q_OBJECT
 
@@ -1037,7 +1039,7 @@ class VBoxIP : public GroupSetting
     QString _oldValue;
 };
 
-class VBoxTunerIndex : public GroupSetting
+class VBoxTunerIndex : public MythUITextEditSetting
 {
     Q_OBJECT
 
@@ -1067,7 +1069,8 @@ class VBoxDeviceIDList : public TransMythUIComboBoxSetting
                      StandardSetting *desc,
                      VBoxIP *cardip,
                      VBoxTunerIndex *cardtuner,
-                     VBoxDeviceList *devicelist);
+                     VBoxDeviceList *devicelist,
+                     const CaptureCard &parent);
 
     void fillSelections(const QString &current);
 
@@ -1082,6 +1085,7 @@ class VBoxDeviceIDList : public TransMythUIComboBoxSetting
     VBoxIP            *_cardip;
     VBoxTunerIndex    *_cardtuner;
     VBoxDeviceList    *_devicelist;
+    const CaptureCard &m_parent;
 
     QString            _oldValue;
 };

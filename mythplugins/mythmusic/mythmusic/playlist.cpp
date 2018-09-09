@@ -150,10 +150,12 @@ Playlist::Playlist(void) :
     m_name(tr("oops")),
     m_parent(NULL),
     m_changed(false),
-    m_doSave(true),
+    m_doSave(true)
+#ifdef CD_WRTITING_FIXED
     m_progress(NULL),
     m_proc(NULL),
     m_procExitVal(0)
+#endif
 {
 }
 
@@ -216,7 +218,11 @@ void Playlist::shuffleTracks(MusicPlayer::ShuffleMode shuffleMode)
                     {
                         // first song
                         playcountMin = playcountMax = mdata->PlayCount();
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
                         lastplayMin = lastplayMax = mdata->LastPlay().toTime_t();
+#else
+                        lastplayMin = lastplayMax = mdata->LastPlay().toSecsSinceEpoch();
+#endif
                     }
                     else
                     {
@@ -225,10 +231,18 @@ void Playlist::shuffleTracks(MusicPlayer::ShuffleMode shuffleMode)
                         else if (mdata->PlayCount() > playcountMax)
                             playcountMax = mdata->PlayCount();
 
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
                         if (mdata->LastPlay().toTime_t() < lastplayMin)
                             lastplayMin = mdata->LastPlay().toTime_t();
                         else if (mdata->LastPlay().toTime_t() > lastplayMax)
                             lastplayMax = mdata->LastPlay().toTime_t();
+#else
+                        double lastplaysecs = mdata->LastPlay().toSecsSinceEpoch();
+                        if (lastplaysecs < lastplayMin)
+                            lastplayMin = lastplaysecs;
+                        else if (lastplaysecs > lastplayMax)
+                            lastplayMax = lastplaysecs;
+#endif
                     }
                 }
             }
@@ -245,7 +259,11 @@ void Playlist::shuffleTracks(MusicPlayer::ShuffleMode shuffleMode)
                 {
                     int rating = mdata->Rating();
                     int playcount = mdata->PlayCount();
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
                     double lastplaydbl = mdata->LastPlay().toTime_t();
+#else
+                    double lastplaydbl = mdata->LastPlay().toSecsSinceEpoch();
+#endif
                     double ratingValue = (double)(rating) / 10;
                     double playcountValue, lastplayValue;
 
@@ -362,10 +380,10 @@ void Playlist::shuffleTracks(MusicPlayer::ShuffleMode shuffleMode)
             QMultiMap<int, MusicMetadata::IdType> songMap;
             for (int x = 0;  x < m_songs.count(); x++)
             {
-                uint32_t album_order;
                 MusicMetadata *mdata = getRawSongAt(x);
                 if (mdata)
                 {
+                    uint32_t album_order;
                     album = album = mdata->Album() + " ~ " + QString("%1").arg(mdata->getAlbumId());;
                     if ((Ialbum = album_map.find(album)) == album_map.end())
                     {
@@ -430,10 +448,10 @@ void Playlist::shuffleTracks(MusicPlayer::ShuffleMode shuffleMode)
             QMultiMap<int, MusicMetadata::IdType> songMap;
             for (int x = 0; x < m_songs.count(); x++)
             {
-                uint32_t artist_order;
                 MusicMetadata *mdata = getRawSongAt(x);
                 if (mdata)
                 {
+                    uint32_t artist_order;
                     artist = mdata->Artist() + " ~ " + mdata->Title();
                     if ((Iartist = artist_map.find(artist)) == artist_map.end())
                     {
@@ -1114,8 +1132,8 @@ MusicMetadata* Playlist::getRawSongAt(int pos) const
 }
 
 // Here begins CD Writing things. ComputeSize, CreateCDMP3 & CreateCDAudio
-// FIXME non of this is currently used
-
+// FIXME none of this is currently used
+#ifdef CD_WRTITING_FIXED
 void Playlist::computeSize(double &size_in_MB, double &size_in_sec)
 {
     //double child_MB;
@@ -1441,3 +1459,4 @@ int Playlist::CreateCDAudio(void)
 {
     return -1;
 }
+#endif

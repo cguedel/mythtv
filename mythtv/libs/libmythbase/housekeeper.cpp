@@ -96,9 +96,16 @@
 HouseKeeperTask::HouseKeeperTask(const QString &dbTag, HouseKeeperScope scope,
                                  HouseKeeperStartup startup):
     ReferenceCounter(dbTag), m_dbTag(dbTag), m_confirm(false), m_scope(scope),
-    m_startup(startup), m_running(false), m_lastRun(MythDate::fromTime_t(0)),
+    m_startup(startup), m_running(false),
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
+    m_lastRun(MythDate::fromTime_t(0)),
     m_lastSuccess(MythDate::fromTime_t(0)),
     m_lastUpdate(MythDate::fromTime_t(0))
+#else
+    m_lastRun(MythDate::fromSecsSinceEpoch(0)),
+    m_lastSuccess(MythDate::fromSecsSinceEpoch(0)),
+    m_lastUpdate(MythDate::fromSecsSinceEpoch(0))
+#endif
 {
 }
 
@@ -176,8 +183,13 @@ void HouseKeeperTask::QueryLast(void)
 
         MSqlQuery query(MSqlQuery::InitCon());
 
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         m_lastRun = MythDate::fromTime_t(0);
         m_lastSuccess = MythDate::fromTime_t(0);
+#else
+        m_lastRun = MythDate::fromSecsSinceEpoch(0);
+        m_lastSuccess = MythDate::fromSecsSinceEpoch(0);
+#endif
 
         if (m_scope == kHKGlobal)
         {
@@ -218,7 +230,11 @@ QDateTime HouseKeeperTask::UpdateLastRun(QDateTime last, bool successful)
         if (!query.isConnected())
             return last;
 
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         if (m_lastRun == MythDate::fromTime_t(0))
+#else
+        if (m_lastRun == MythDate::fromSecsSinceEpoch(0))
+#endif
         {
             // not previously set, perform insert
 
@@ -419,7 +435,7 @@ bool PeriodicHouseKeeperTask::PastWindow(QDateTime now)
  *  the same behavior as the PeriodicHouseKeeperTask, but will restrict the
  *  run window to prevent a task from running a second time on the same day,
  *  and forces a task to at least thirty minutes before midnight if it has not
- *  yet run that day. This class supports a <i>minhour</i> and <i>maxhour<i>
+ *  yet run that day. This class supports a <i>minhour</i> and <i>maxhour</i>
  *  integer inputs to the constructer to allow further limiting of the window
  *  in which the task is allowed to run.
  *
@@ -815,7 +831,7 @@ void HouseKeeper::customEvent(QEvent *e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent*)e;
+        MythEvent *me = static_cast<MythEvent*>(e);
         if ((me->Message().left(20) == "HOUSE_KEEPER_RUNNING") ||
             (me->Message().left(23) == "HOUSE_KEEPER_SUCCESSFUL"))
         {

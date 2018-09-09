@@ -7,14 +7,10 @@ mingw | win32-msvc* {
    # script debugger currently only enabled for WIN32 builds
    QT += scripttools
 }
-contains(QT_VERSION, ^4\\.[0-9]\\..*) {
-QT += webkit
-using_qtdbus: CONFIG += qdbus
-}
-contains(QT_VERSION, ^5\\.[0-9]\\..*):using_qtwebkit {
-QT += widgets
-QT += webkitwidgets
-using_qtdbus: QT += dbus
+using_qtwebkit {
+    QT += widgets webkitwidgets
+    using_qtdbus: QT += dbus
+    android: QT += androidextras
 }
 
 TEMPLATE = app
@@ -55,7 +51,7 @@ HEADERS += commandlineparser.h          idlescreen.h
 HEADERS += gallerythumbview.h           galleryslideview.h
 HEADERS += galleryconfig.h              galleryviews.h
 HEADERS += galleryslide.h               gallerytransitions.h
-HEADERS += galleryinfo.h
+HEADERS += galleryinfo.h                prevreclist.h
 
 SOURCES += main.cpp playbackbox.cpp viewscheduled.cpp audiogeneralsettings.cpp
 SOURCES += globalsettings.cpp manualschedule.cpp programrecpriority.cpp
@@ -80,7 +76,7 @@ SOURCES += commandlineparser.cpp        idlescreen.cpp
 SOURCES += gallerythumbview.cpp         galleryslideview.cpp
 SOURCES += galleryconfig.cpp            galleryviews.cpp
 SOURCES += galleryslide.cpp             gallerytransitions.cpp
-SOURCES += galleryinfo.cpp
+SOURCES += galleryinfo.cpp              prevreclist.cpp
 
 HEADERS += serviceHosts/frontendServiceHost.h
 HEADERS += services/frontend.h
@@ -140,20 +136,24 @@ android {
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libexiv2.13.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libfreetype.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)mariadb/libmariadb.so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)liblzo2.so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libbluray.so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libxml2.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythavutil.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythpostproc.so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythavfilter.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythswresample.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythswscale.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythavcodec.so
     ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIBCOMMON)libmythavformat.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythbase-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythui-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythservicecontracts-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythupnp-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmyth-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythtv-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythmetadata-0.28.so
-    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythprotoserver-0.28.so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythbase-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythui-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythservicecontracts-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythupnp-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmyth-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythtv-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythmetadata-$$(MYTHLIBVERSION).so
+    ANDROID_EXTRA_LIBS += $$(MYTHINSTALLLIB)libmythprotoserver-$$(MYTHLIBVERSION).so
 
     ANDROID_PACKAGE_SOURCE_DIR += $$(MYTHPACKAGEBASE)/android-package-source
 }
@@ -169,8 +169,10 @@ using_openmax {
                 createlinks.path = $${PREFIX}/share/mythtv/lib
                 createlinks.extra = ln -fs /opt/vc/lib/libbrcmEGL.so $(INSTALL_ROOT)/$${PREFIX}/share/mythtv/lib/libEGL.so.1.0.0 ;
                 createlinks.extra += ln -fs /opt/vc/lib/libbrcmEGL.so $(INSTALL_ROOT)/$${PREFIX}/share/mythtv/lib/libEGL.so.1 ;
+                createlinks.extra += ln -fs /opt/vc/lib/libbrcmEGL.so $(INSTALL_ROOT)/$${PREFIX}/share/mythtv/lib/libEGL.so ;
                 createlinks.extra += ln -fs /opt/vc/lib/libbrcmGLESv2.so $(INSTALL_ROOT)/$${PREFIX}/share/mythtv/lib/libGLESv2.so.2.0.0 ;
                 createlinks.extra += ln -fs /opt/vc/lib/libbrcmGLESv2.so $(INSTALL_ROOT)/$${PREFIX}/share/mythtv/lib/libGLESv2.so.2 ;
+                createlinks.extra += ln -fs /opt/vc/lib/libbrcmGLESv2.so $(INSTALL_ROOT)/$${PREFIX}/share/mythtv/lib/libGLESv2.so ;
                 INSTALLS += createlinks
             } else {
                 # For raspberry Pi Raspbian pre-stretch

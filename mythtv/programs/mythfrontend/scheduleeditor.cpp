@@ -530,9 +530,8 @@ bool ScheduleEditor::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->
+    bool handled = GetMythMainWindow()->
         TranslateKeyPress("TV Frontend", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
@@ -899,9 +898,8 @@ bool SchedEditChild::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->
+    bool handled = GetMythMainWindow()->
         TranslateKeyPress("TV Frontend", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
@@ -2267,12 +2265,11 @@ void FilterOptMixin::Load(void)
     MythUIButtonListItem *button;
     QStringList::iterator Idesc;
     int  idx;
-    bool active;
     bool not_empty = m_filtersList && !m_filtersList->IsEmpty();
     for (Idesc = m_descriptions.begin(), idx = 0;
          Idesc != m_descriptions.end(); ++Idesc, ++idx)
     {
-        active = m_rule->m_filter & (1 << idx);
+        bool active = m_rule->m_filter & (1 << idx);
         if (m_filtersList)
         {
             if (not_empty)
@@ -2309,13 +2306,13 @@ void FilterOptMixin::Save()
         return;
 
     // Iterate through button list, and build the mask
-    MythUIButtonListItem *button;
     uint32_t filter_mask = 0;
     int idx, end;
 
     end = m_filtersList->GetCount();
     for (idx = 0; idx < end; ++idx)
     {
+        MythUIButtonListItem *button;
         if ((button = m_filtersList->GetItemAt(idx)) &&
             button->state() == MythUIButtonListItem::FullChecked)
             filter_mask |= (1 << button->GetData().value<uint32_t>());

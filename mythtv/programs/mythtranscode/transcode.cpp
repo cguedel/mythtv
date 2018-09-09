@@ -52,7 +52,9 @@ Transcode::Transcode(ProgramInfo *pginfo) :
     m_proginfo(pginfo),
     m_recProfile(new RecordingProfile("Transcoders")),
     keyframedist(30),
+#if CONFIG_LIBMP3LAME
     nvr(NULL),
+#endif
     ctx(NULL),
     outRingBuffer(NULL),
     fifow(NULL),
@@ -179,7 +181,7 @@ static QString get_str_option(RecordingProfile *profile, const QString &name)
     LOG(VB_GENERAL, LOG_ERR, LOC +
         QString("get_str_option(...%1): Option not in profile.").arg(name));
 
-    return QString::null;
+    return QString();
 }
 
 static int get_int_option(RecordingProfile *profile, const QString &name)
@@ -227,6 +229,10 @@ int Transcode::TranscodeFile(const QString &inputname,
     HTTPLiveStream *hls = NULL;
     int hlsSegmentSize = 0;
     int hlsSegmentFrames = 0;
+
+#if !CONFIG_LIBMP3LAME
+    (void)profileName;
+#endif
 
     if (jobID >= 0)
         JobQueue::ChangeJobComment(jobID, "0% " + QObject::tr("Completed"));
@@ -484,7 +490,6 @@ int Transcode::TranscodeFile(const QString &inputname,
             }
 
             int segmentSize = hls->GetSegmentSize();
-            int audioOnlyBitrate = 0;
 
             LOG(VB_GENERAL, LOG_NOTICE,
                 QString("HLS: Using segment size of %1 seconds")
@@ -492,7 +497,7 @@ int Transcode::TranscodeFile(const QString &inputname,
 
             if (!hlsDisableAudioOnly)
             {
-                audioOnlyBitrate = hls->GetAudioOnlyBitrate();
+                int audioOnlyBitrate = hls->GetAudioOnlyBitrate();
 
                 avfw2 = new AVFormatWriter();
                 avfw2->SetContainer("mpegts");
@@ -891,6 +896,7 @@ int Transcode::TranscodeFile(const QString &inputname,
     // Do not use padding when compressing to RTjpeg or when in fifomode.
     // The RTjpeg compressor doesn't know how to handle strides different to
     // video width.
+    // cppcheck-suppress knownConditionTrueFalse
     bool nonAligned = vidsetting == "RTjpeg" || !fifodir.isEmpty(); 
     bool rescale =
         (video_width != newWidth) || (video_height != newHeight)
@@ -972,8 +978,7 @@ int Transcode::TranscodeFile(const QString &inputname,
         {
             bool is_key;
             int did_ff;
-            frm_dir_map_t::iterator dm_iter;
-            GetPlayer()->TranscodeGetNextFrame(dm_iter, did_ff, is_key, true);
+            GetPlayer()->TranscodeGetNextFrame(did_ff, is_key, true);
 
             QSize buf_size = GetPlayer()->GetVideoBufferSize();
             video_width = buf_size.width();
@@ -1070,7 +1075,7 @@ int Transcode::TranscodeFile(const QString &inputname,
     VideoOutput *videoOutput = GetPlayer()->GetVideoOutput();
     bool is_key = 0;
     bool first_loop = true;
-    AVPicture imageIn, imageOut;
+    AVFrame imageIn, imageOut;
     struct SwsContext  *scontext = NULL;
 
     if (fifow)

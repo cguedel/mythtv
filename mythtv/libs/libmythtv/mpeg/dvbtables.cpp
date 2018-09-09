@@ -60,7 +60,7 @@ QString NetworkInformationTable::toString(void) const
 
 QString NetworkInformationTable::NetworkName() const
 {
-    if (_cached_network_name == QString::null)
+    if (_cached_network_name.isEmpty())
     {
         desc_list_t parsed =
             MPEGDescriptor::Parse(NetworkDescriptors(),
@@ -178,6 +178,9 @@ QString BouquetAssociationTable::toString(void) const
         QString("BAT: BouquetID(0x%1) transports(%2)\n")
         .arg(BouquetID(), 0, 16).arg(TransportStreamCount());
 
+    str.append(QString("Section (%1) Last Section (%2) IsCurrent (%3)\n")
+        .arg(Section()).arg(LastSection()).arg(IsCurrent()));
+
     if (0 != BouquetDescriptorsLength())
     {
         str.append(QString("Bouquet descriptors length: %1\n")
@@ -261,7 +264,11 @@ QDateTime dvbdate2qt(const unsigned char *buf)
         secsSince1970 += byteBCD2int(buf[2]) * 3600;
         secsSince1970 += byteBCD2int(buf[3]) * 60;
         secsSince1970 += byteBCD2int(buf[4]);
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         return MythDate::fromTime_t(secsSince1970);
+#else
+        return MythDate::fromSecsSinceEpoch(secsSince1970);
+#endif
     }
 
     // Original function taken from dvbdate.c in linuxtv-apps code

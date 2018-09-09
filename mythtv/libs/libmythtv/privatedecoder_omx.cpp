@@ -14,12 +14,15 @@
 extern "C" {
 #include "libavutil/pixdesc.h"
 #include "libavcodec/avcodec.h"
+#include "libavutil/imgutils.h"
 }
 
 #include "avformatdecoder.h"
 #include "mythcorecontext.h"
 #include "mythlogging.h"
 #include "omxcontext.h"
+#include "mythavutil.h"
+
 using namespace omxcontext;
 
 
@@ -281,6 +284,28 @@ bool PrivateDecoderOMX::Init(const QString &decoder, PlayerFlags flags,
     }
     avctx->pix_fmt = AV_PIX_FMT_YUV420P; // == FMT_YV12
 
+    // Update input buffers (default is 20 preset in OMX)
+    m_videc.GetPortDef(0);
+    OMX_PARAM_PORTDEFINITIONTYPE &indef = m_videc.PortDef(0);
+    OMX_U32 inputBuffers
+        = OMX_U32(gCoreContext->GetNumSetting("OmxInputBuffers", 30));
+    if (inputBuffers > 0U
+        && inputBuffers != indef.nBufferCountActual
+        && inputBuffers > indef.nBufferCountMin)
+    {
+        indef.nBufferCountActual = inputBuffers;
+        e = m_videc.SetParameter(OMX_IndexParamPortDefinition, &indef);
+        if (e != OMX_ErrorNone)
+        {
+            LOG(VB_PLAYBACK, LOG_ERR, LOC + QString(
+                    "Set input IndexParamPortDefinition error %1")
+                .arg(Error2String(e)));
+            return false;
+        }
+    }
+    m_videc.GetPortDef(0);
+    m_videc.ShowPortDef(0, LOG_INFO);
+
     // Ensure at least 2 output buffers
     OMX_PARAM_PORTDEFINITIONTYPE &def = m_videc.PortDef(1);
     if (def.nBufferCountActual < 2U ||
@@ -296,6 +321,8 @@ bool PrivateDecoderOMX::Init(const QString &decoder, PlayerFlags flags,
             return false;
         }
     }
+    m_videc.GetPortDef(0);
+    m_videc.ShowPortDef(1, LOG_INFO);
 
     // Goto OMX_StateIdle & allocate all buffers
     // This generates an error if fmt.eCompressionFormat is not supported
@@ -454,21 +481,6 @@ bool PrivateDecoderOMX::CreateFilter(AVCodecContext *avctx)
         return false;
     }
 
-    // Test the filter
-    static const uint8_t test[] = { 0U,0U,0U,2U,0U,0U };
-    int outbuf_size = 0;
-    uint8_t *outbuf = NULL;
-    int res = av_bitstream_filter_filter(m_filter, avctx, NULL, &outbuf,
-                                         &outbuf_size, test, sizeof test, 0);
-    if (res < 0)
-    {
-        LOG(VB_PLAYBACK, LOG_ERR, LOC + "h264_mp4toannexb filter test failed");
-        av_bitstream_filter_close(m_filter);
-        m_filter = NULL;
-        return false;
-    }
-
-    av_freep(&outbuf);
     LOG(VB_GENERAL, LOG_INFO, LOC + "Installed h264_mp4toannexb filter");
     return true;
 }
@@ -757,7 +769,8 @@ int PrivateDecoderOMX::GetFrame(
         *got_picture_ptr = 1;
 
     // Check for OMX_EventPortSettingsChanged notification
-    if (SettingsChanged(stream->codec) != OMX_ErrorNone)
+    AVCodecContext *avctx = gCodecMap->getCodecContext(stream);
+    if (SettingsChanged(avctx) != OMX_ErrorNone)
     {
         // PGB If there was an error, discard this packet
         *got_picture_ptr = 0;
@@ -790,7 +803,7 @@ int PrivateDecoderOMX::ProcessPacket(AVStream *stream, AVPacket *pkt)
     // Convert h264_mp4toannexb
     if (m_filter)
     {
-        AVCodecContext *avctx = stream->codec;
+        AVCodecContext *avctx = gCodecMap->getCodecContext(stream);
         int outbuf_size = 0;
         uint8_t *outbuf = NULL;
         int res = av_bitstream_filter_filter(m_filter, avctx, NULL, &outbuf,
@@ -812,14 +825,22 @@ int PrivateDecoderOMX::ProcessPacket(AVStream *stream, AVPacket *pkt)
         }
     }
 
+    // size is typically 50000 - 70000 but occasionally as low as 2500
+    // or as high as 360000
     while (size > 0)
     {
-        if (!m_ibufs_sema.tryAcquire(1, 10000))
+        if (!m_ibufs_sema.tryAcquire(1, 100))
         {
-            LOG(VB_GENERAL, LOG_ERR, LOC + __func__ + " - no input buffers");
+            LOG(VB_GENERAL, LOG_ERR, LOC + __func__ +
+                " Ran out of OMX input buffers, see OmxInputBuffers setting.");
             ret = 0;
             break;
         }
+        int freebuffers = m_ibufs_sema.available();
+        if (freebuffers < 2)
+            LOG(VB_PLAYBACK, LOG_WARNING, LOC + __func__ +
+                QString(" Free OMX input buffers = %1, see OmxInputBuffers setting.")
+                .arg(freebuffers));
         m_lock.lock();
         assert(!m_ibufs.isEmpty());
         OMX_BUFFERHEADERTYPE *hdr = m_ibufs.takeFirst();
@@ -873,7 +894,7 @@ int PrivateDecoderOMX::GetBufferedFrame(AVStream *stream, AVFrame *picture)
     if (!picture)
         return -1;
 
-    AVCodecContext *avctx = stream->codec;
+    AVCodecContext *avctx = gCodecMap->getCodecContext(stream);
     if (!avctx)
         return -1;
 
@@ -886,9 +907,9 @@ int PrivateDecoderOMX::GetBufferedFrame(AVStream *stream, AVFrame *picture)
     m_lock.unlock();
 
     OMX_U32 nFlags = hdr->nFlags;
-    if (hdr->nFlags & ~OMX_BUFFERFLAG_ENDOFFRAME)
+    if (nFlags & ~OMX_BUFFERFLAG_ENDOFFRAME)
         LOG(VB_PLAYBACK, LOG_DEBUG, LOC +
-            QString("Decoded frame flags=%1").arg(HeaderFlags(hdr->nFlags)) );
+            QString("Decoded frame flags=%1").arg(HeaderFlags(nFlags)) );
 
     if (avctx->pix_fmt < 0)
         avctx->pix_fmt = AV_PIX_FMT_YUV420P; // == FMT_YV12
@@ -999,10 +1020,12 @@ int PrivateDecoderOMX::GetBufferedFrame(AVStream *stream, AVFrame *picture)
             buf = (unsigned char*)av_malloc(size);
             init(&vf, frametype, buf, out_width, out_height, size);
 
-            AVPicture img_in, img_out;
-            avpicture_fill(&img_out, (uint8_t *)vf.buf, out_fmt, out_width,
-                out_height);
-            avpicture_fill(&img_in, src, in_fmt, in_width, in_height);
+            AVFrame img_in, img_out;
+            av_image_fill_arrays(img_out.data, img_out.linesize,
+                (uint8_t *)vf.buf, out_fmt, out_width,
+                out_height, IMAGE_ALIGN);
+            av_image_fill_arrays(img_in.data, img_in.linesize,
+                src, in_fmt, in_width, in_height, IMAGE_ALIGN);
 
             LOG(VB_PLAYBACK, LOG_DEBUG, LOC + QString("Converting %1 to %2")
                 .arg(av_pix_fmt_desc_get(in_fmt)->name)

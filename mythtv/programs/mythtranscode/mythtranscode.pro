@@ -2,10 +2,7 @@ include ( ../../settings.pro)
 include ( ../../version.pro)
 include ( ../programs-libs.pro)
 
-QT += network xml sql
-contains(QT_VERSION, ^5\\.[0-9]\\..*) {
-QT += widgets
-}
+QT += network xml sql widgets
 
 TEMPLATE = app
 CONFIG += thread
@@ -38,10 +35,6 @@ DEPENDPATH += ../../libs/libavutil
 DEPENDPATH += ../../libs/libavcodec
 DEPENDPATH += ../../libs/libavformat
 DEPENDPATH += ../../libs/libmythtv/recorders
-DEPENDPATH += ../../external/minilzo
-
-LIBS += -L../../external/minilzo -lmythminilzo-$$LIBVERSION
-POST_TARGETDEPS += ../../external/minilzo/libmythminilzo-$${MYTH_LIB_EXT}
 
 !contains( CONFIG_LIBMPEG2EXTERNAL, yes) {
         DEPENDPATH += ../../libs/libmythmpeg2

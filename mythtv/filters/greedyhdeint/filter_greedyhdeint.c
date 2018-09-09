@@ -199,7 +199,8 @@ static int GreedyHDeint (VideoFilter * f, VideoFrame * frame, int field)
     }
     else
 #else
-#   warning Greedy HighMotion deinterlace filter requires MMX
+#       warning Greedy HighMotion deinterlace filter requires MMX
+        (void)field;
 #endif
     {
         /* TODO plain old C implementation */
@@ -239,6 +240,8 @@ static VideoFilter* GreedyHDeintFilter(VideoFrameType inpixfmt,
                                        int threads)
 {
     ThisFilter *filter;
+    (void) inpixfmt;
+    (void) outpixfmt;
     (void) height;
     (void) options;
     (void) threads;

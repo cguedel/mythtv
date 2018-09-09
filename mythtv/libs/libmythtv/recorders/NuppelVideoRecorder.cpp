@@ -43,6 +43,7 @@ extern "C" {
 
 extern "C" {
 #include "libswscale/swscale.h"
+#include "libavutil/imgutils.h"
 }
 
 #ifdef USING_V4L2
@@ -150,8 +151,6 @@ NuppelVideoRecorder::NuppelVideoRecorder(TVRec *rec, ChannelBase *channel) :
     picture_format = AV_PIX_FMT_YUV420P;
     v4l2_pixelformat = 0;
 
-    avcodec_register_all();
-
     mpa_vidcodec = 0;
     mpa_vidctx = NULL;
 
@@ -204,8 +203,8 @@ NuppelVideoRecorder::NuppelVideoRecorder(TVRec *rec, ChannelBase *channel) :
 
     m_containerFormat = formatNUV;
 
-    stm = (struct timeval){0};
-    tzone = (struct timezone){0};
+    memset(&stm, 0, sizeof(struct timeval));
+    memset(&tzone, 0, sizeof(struct timezone));
 
     lastPositionMapPos = 0;
     framesWritten = 0;
@@ -269,12 +268,8 @@ NuppelVideoRecorder::~NuppelVideoRecorder(void)
     if (mpa_vidcodec)
     {
         QMutexLocker locker(avcodeclock);
-        avcodec_close(mpa_vidctx);
+        avcodec_free_context(&mpa_vidctx);
     }
-
-    if (mpa_vidctx)
-        av_free(mpa_vidctx);
-    mpa_vidctx = NULL;
 
     if (videoFilters)
         delete videoFilters;
@@ -323,23 +318,23 @@ void NuppelVideoRecorder::SetOption(const QString &opt, int value)
     else if (opt == "mpeg4option4mv")
     {
         if (value)
-            mp4opts |= CODEC_FLAG_4MV;
+            mp4opts |= AV_CODEC_FLAG_4MV;
         else
-            mp4opts &= ~CODEC_FLAG_4MV;
+            mp4opts &= ~AV_CODEC_FLAG_4MV;
     }
     else if (opt == "mpeg4optionidct")
     {
         if (value)
-            mp4opts |= CODEC_FLAG_INTERLACED_DCT;
+            mp4opts |= AV_CODEC_FLAG_INTERLACED_DCT;
         else
-            mp4opts &= ~CODEC_FLAG_INTERLACED_DCT;
+            mp4opts &= ~AV_CODEC_FLAG_INTERLACED_DCT;
     }
     else if (opt == "mpeg4optionime")
     {
         if (value)
-            mp4opts |= CODEC_FLAG_INTERLACED_ME;
+            mp4opts |= AV_CODEC_FLAG_INTERLACED_ME;
         else
-            mp4opts &= ~CODEC_FLAG_INTERLACED_ME;
+            mp4opts &= ~AV_CODEC_FLAG_INTERLACED_ME;
     }
     else if (opt == "hardwaremjpegquality")
         hmjpg_quality = value;
@@ -383,7 +378,7 @@ void NuppelVideoRecorder::SetOptionsFromProfile(RecordingProfile *profile,
     SetOption("vbiformat", gCoreContext->GetSetting("VbiFormat"));
     SetOption("audiodevice", audiodev);
 
-    QString setting = QString::null;
+    QString setting;
     const StandardSetting *tmp = profile->byName("videocodec");
     if (tmp)
         setting = tmp->getValue();
@@ -446,7 +441,7 @@ void NuppelVideoRecorder::SetOptionsFromProfile(RecordingProfile *profile,
         SetIntOption(profile, "rtjpeglumafilter");
     }
 
-    setting = QString::null;
+    setting.clear();
     if ((tmp = profile->byName("audiocodec")))
         setting = tmp->getValue();
 
@@ -524,12 +519,8 @@ bool NuppelVideoRecorder::SetupAVCodecVideo(void)
     if (mpa_vidcodec)
     {
         QMutexLocker locker(avcodeclock);
-        avcodec_close(mpa_vidctx);
+        avcodec_free_context(&mpa_vidctx);
     }
-
-    if (mpa_vidctx)
-        av_free(mpa_vidctx);
-    mpa_vidctx = NULL;
 
     QByteArray vcodec = videocodec.toLatin1();
     mpa_vidcodec = avcodec_find_encoder_by_name(vcodec.constData());
@@ -589,6 +580,8 @@ bool NuppelVideoRecorder::SetupAVCodecVideo(void)
                    break;
     }
 
+    AVDictionary *opts = NULL;
+
     mpa_vidctx->bit_rate = usebitrate;
     mpa_vidctx->bit_rate_tolerance = usebitrate * 100;
     mpa_vidctx->qmin = maxquality;
@@ -600,25 +593,26 @@ bool NuppelVideoRecorder::SetupAVCodecVideo(void)
     mpa_vidctx->qblur = 0.5;
     mpa_vidctx->max_b_frames = 0;
     mpa_vidctx->b_quant_factor = 0;
-    mpa_vidctx->rc_strategy = 2;
-    mpa_vidctx->b_frame_strategy = 0;
+    av_dict_set(&opts, "rc_strategy", "2", 0);
+    av_dict_set(&opts, "b_strategy", "0", 0);
     mpa_vidctx->gop_size = 30;
     mpa_vidctx->rc_max_rate = 0;
     mpa_vidctx->rc_min_rate = 0;
     mpa_vidctx->rc_buffer_size = 0;
-    mpa_vidctx->rc_buffer_aggressivity = 1.0;
+    // mpa_vidctx->rc_buffer_aggressivity = 1.0;
+    // rc_buf_aggressivity is now "currently useless"
     mpa_vidctx->rc_override_count = 0;
-    mpa_vidctx->rc_initial_cplx = 0;
+    av_dict_set(&opts, "rc_init_cplx", "0", 0);
     mpa_vidctx->dct_algo = FF_DCT_AUTO;
     mpa_vidctx->idct_algo = FF_IDCT_AUTO;
-    mpa_vidctx->prediction_method = FF_PRED_LEFT;
+    av_dict_set_int(&opts, "pred", FF_PRED_LEFT, 0);
     if (videocodec.toLower() == "huffyuv" || videocodec.toLower() == "mjpeg")
         mpa_vidctx->strict_std_compliance = FF_COMPLIANCE_UNOFFICIAL;
     mpa_vidctx->thread_count = encoding_thread_count;
 
     QMutexLocker locker(avcodeclock);
 
-    if (avcodec_open2(mpa_vidctx, mpa_vidcodec, NULL) < 0)
+    if (avcodec_open2(mpa_vidctx, mpa_vidcodec, &opts) < 0)
     {
         LOG(VB_GENERAL, LOG_ERR, LOC + QString("Unable to open FFMPEG/%1 codec")
                 .arg(videocodec));
@@ -749,7 +743,7 @@ void NuppelVideoRecorder::Initialize(void)
         ringBuffer = RingBuffer::Create("output.nuv", true);
         weMadeBuffer = true;
         livetv = false;
-        if (!ringBuffer->IsOpen())
+        if (!ringBuffer || !ringBuffer->IsOpen())
         {
             _error = "Could not open RingBuffer";
             LOG(VB_GENERAL, LOG_ERR, LOC + _error);
@@ -767,11 +761,9 @@ void NuppelVideoRecorder::Initialize(void)
 
 int NuppelVideoRecorder::AudioInit(bool skipdevice)
 {
-    int blocksize;
-    int tmp;
-
     if (!skipdevice)
     {
+        int blocksize;
         audio_device = AudioInput::CreateDevice(audiodevice.toLatin1());
         if (!audio_device)
         {
@@ -806,6 +798,7 @@ int NuppelVideoRecorder::AudioInit(bool skipdevice)
 
     if (compressaudio)
     {
+        int tmp;
         gf = lame_init();
         lame_set_bWriteVbrTag(gf, 0);
         lame_set_quality(gf, mp3quality);
@@ -926,6 +919,7 @@ void NuppelVideoRecorder::InitFilters(void)
 void NuppelVideoRecorder::InitBuffers(void)
 {
     int videomegs;
+    // cppcheck-suppress variableScope
     int audiomegs = 2;
 
     if (!video_buffer_size)
@@ -996,6 +990,7 @@ void NuppelVideoRecorder::ResizeVideoBuffers(void)
 
 void NuppelVideoRecorder::StreamAllocate(void)
 {
+    delete [] strm;
     strm = new signed char[width * height * 2 + 10];
 }
 
@@ -1613,7 +1608,7 @@ void NuppelVideoRecorder::DoV4L2(void)
     // setup pixel format conversions for YUYV and UYVY
     uint8_t *output_buffer = NULL;
     struct SwsContext *convert_ctx = NULL;
-    AVPicture img_out;
+    AVFrame img_out;
     if (v4l2_pixelformat == V4L2_PIX_FMT_YUYV ||
         v4l2_pixelformat == V4L2_PIX_FMT_UYVY)
     {
@@ -1640,7 +1635,8 @@ void NuppelVideoRecorder::DoV4L2(void)
             return;
         }
 
-        avpicture_fill(&img_out, output_buffer, AV_PIX_FMT_YUV420P, width, height);
+        av_image_fill_arrays(img_out.data, img_out.linesize,
+            output_buffer, AV_PIX_FMT_YUV420P, width, height, IMAGE_ALIGN);
     }
 
     while (IsRecordingRequested() && !IsErrored())
@@ -1743,16 +1739,20 @@ again:
         {
             if (v4l2_pixelformat == V4L2_PIX_FMT_YUYV)
             {
-                AVPicture img_in;
-                avpicture_fill(&img_in, buffers[frame], AV_PIX_FMT_YUYV422, width, height);
+                AVFrame img_in;
+                av_image_fill_arrays(img_in.data, img_in.linesize,
+                    buffers[frame], AV_PIX_FMT_YUYV422, width, height,
+                    IMAGE_ALIGN);
                 sws_scale(convert_ctx, img_in.data, img_in.linesize,
                           0, height, img_out.data, img_out.linesize);
                 BufferIt(output_buffer, video_buffer_size);
             }
             else if (v4l2_pixelformat == V4L2_PIX_FMT_UYVY)
             {
-                AVPicture img_in;
-                avpicture_fill(&img_in, buffers[frame], AV_PIX_FMT_UYVY422, width, height);
+                AVFrame img_in;
+                av_image_fill_arrays(img_in.data, img_in.linesize,
+                    buffers[frame], AV_PIX_FMT_UYVY422, width, height,
+                    IMAGE_ALIGN);
                 sws_scale(convert_ctx, img_in.data, img_in.linesize,
                           0, height, img_out.data, img_out.linesize);
                 BufferIt(output_buffer, video_buffer_size);
@@ -1974,7 +1974,6 @@ void NuppelVideoRecorder::BufferIt(unsigned char *buf, int len, bool forcekey)
 {
     int act;
     long tcres;
-    int fn;
     struct timeval now;
 
     act = act_video_buffer;
@@ -1995,7 +1994,7 @@ void NuppelVideoRecorder::BufferIt(unsigned char *buf, int len, bool forcekey)
             tf = 2;
         else
         {
-            fn = tcres - oldtc;
+            int fn = tcres - oldtc;
 
      // the difference should be less than 1,5*timeperframe or we have
      // missed at least one frame, this code might be inaccurate!
@@ -2105,7 +2104,6 @@ void NuppelVideoRecorder::WriteFileHeader(void)
 void NuppelVideoRecorder::WriteHeader(void)
 {
     struct rtframeheader frameheader;
-    static unsigned long int tbls[128];
 
     if (!videoFilters)
         InitFilters();
@@ -2125,6 +2123,8 @@ void NuppelVideoRecorder::WriteHeader(void)
     }
     else
     {
+        static unsigned long int tbls[128];
+
         frameheader.comptype = 'R'; // compressor data for RTjpeg
         frameheader.packetlength = sizeof(tbls);
 
@@ -2519,7 +2519,8 @@ void NuppelVideoRecorder::FormatTT(struct VBIData *vbidata)
     unsigned char *inpos = vbidata->teletextpage.data[0];
     unsigned char *outpos = textbuffer[act]->buffer;
     *outpos = 0;
-    struct teletextsubtitle st = { 0 };
+    struct teletextsubtitle st;
+    memset(&st, 0, sizeof(struct teletextsubtitle));
     unsigned char linebuf[VT_WIDTH + 1];
     unsigned char *linebufpos = linebuf;
 
@@ -2877,6 +2878,7 @@ void NuppelVideoRecorder::WriteVideo(VideoFrame *frame, bool skipsync,
     lzo_uint out_len = OUT_LEN;
     struct rtframeheader frameheader;
     int raw = 0, compressthis = compression;
+    // cppcheck-suppress variableScope
     uint8_t *planes[3] = {
         frame->buf + frame->offsets[0],
         frame->buf + frame->offsets[1],
@@ -3103,9 +3105,6 @@ static void bswap_16_buf(short int *buf, int buf_cnt, int audio_channels)
 void NuppelVideoRecorder::WriteAudio(unsigned char *buf, int fnum, int timecode)
 {
     struct rtframeheader frameheader;
-    double mt;
-    double eff;
-    double abytes;
 
     if (last_block == 0)
     {
@@ -3139,13 +3138,13 @@ void NuppelVideoRecorder::WriteAudio(unsigned char *buf, int fnum, int timecode)
                              // of recording and the first timestamp, maybe we
                              // can calculate the audio-video +-lack at the
                             // beginning too
-        abytes = (double)audiobytes; // - (double)audio_buffer_size;
+        double abytes = (double)audiobytes; // - (double)audio_buffer_size;
                                      // wrong guess ;-)
         // need seconds instead of msec's
-        mt = (double)timecode;
+        double mt = (double)timecode;
         if (mt > 0.0)
         {
-            eff = (abytes / mt) * (100000.0 / audio_bytes_per_sample);
+            double eff = (abytes / mt) * (100000.0 / audio_bytes_per_sample);
             effectivedsp = (int)eff;
         }
     }

@@ -24,8 +24,13 @@ using std::min;
 #include "mythrender_opengl1.h"
 #endif
 
-#ifdef USING_X11
+#ifdef CONFIG_XNVCTRL
 #include "util-nvctrl.h"
+#endif
+
+#ifdef Q_OS_ANDROID
+#include <android/log.h>
+#include <QWindow>
 #endif
 
 static const GLuint kTextureOffset = 8 * sizeof(GLfloat);
@@ -90,7 +95,7 @@ MythRenderOpenGL* MythRenderOpenGL::Create(const QString &painter,
     bool setswapinterval = false;
     int synctovblank = -1;
 
-#ifdef USING_X11
+#ifdef CONFIG_XNVCTRL
     synctovblank = CheckNVOpenGLSyncToVBlank();
 #endif
 
@@ -133,6 +138,7 @@ MythRenderOpenGL* MythRenderOpenGL::Create(const QString &painter,
 #endif
 
 #ifdef USING_OPENGLES
+    Q_UNUSED(painter);
     if (!(openGLVersionFlags & QGLFormat::OpenGL_ES_Version_2_0))
     {
         LOG(VB_GENERAL, LOG_WARNING,
@@ -280,6 +286,15 @@ void MythRenderOpenGL::setWidget(QWidget *w)
             m_window = w->windowHandle();
     }
 
+#ifdef ANDROID
+    // change all window surfacetypes to OpenGLSurface
+    // otherwise the raster gets painted on top of the GL surface
+    m_window->setSurfaceType(QWindow::OpenGLSurface);
+    QWidget* wNativeParent = w->nativeParentWidget();
+    if (wNativeParent)
+        wNativeParent->windowHandle()->setSurfaceType(QWindow::OpenGLSurface);
+#endif
+
     if (!create())
         LOG(VB_GENERAL, LOG_WARNING, LOC + "setWidget create failed");
     else if (w)
@@ -294,6 +309,16 @@ bool MythRenderOpenGL::IsDirectRendering() const
 void MythRenderOpenGL::setWidget(QGLWidget *w)
 {
     setDevice(w);
+
+#ifdef ANDROID
+    // change all window surfacetypes to OpenGLSurface
+    // otherwise the raster gets painted on top of the GL surface
+    m_window->setSurfaceType(QWindow::OpenGLSurface);
+    QWidget* wNativeParent = w->nativeParentWidget();
+    if (wNativeParent)
+        wNativeParent->windowHandle()->setSurfaceType(QWindow::OpenGLSurface);
+#endif
+
     w->setContext(this);
 }
 #endif

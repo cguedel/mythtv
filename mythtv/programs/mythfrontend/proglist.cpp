@@ -997,7 +997,6 @@ void ProgLister::FillViewList(const QString &view)
         if (query.exec() && query.next())
         {
             QString title = query.value(0).toString();
-            title = query.value(0).toString();
             m_viewList.push_back(view);
             m_viewTextList.push_back(title);
         }
@@ -1718,7 +1717,7 @@ void ProgLister::customEvent(QEvent *event)
     }
     else if ((MythEvent::Type)(event->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QString message = me->Message();
 
         if (m_allowViewDialog && message == "CHOOSE_VIEW")

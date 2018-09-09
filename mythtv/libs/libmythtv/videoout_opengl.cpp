@@ -38,6 +38,8 @@ void VideoOutputOpenGL::GetRenderOptions(render_opts &opts,
         (*opts.safe_renderers)["crystalhd"].append("opengl");
     if (opts.decoders->contains("openmax"))
         (*opts.safe_renderers)["openmax"].append("opengl");
+    if (opts.decoders->contains("mediacodec"))
+        (*opts.safe_renderers)["mediacodec"].append("opengl");
     opts.priorities->insert("opengl", 65);
 
     // lite profile - no colourspace control, GPU deinterlacing
@@ -247,7 +249,7 @@ bool VideoOutputOpenGL::InputChanged(const QSize &video_dim_buf,
                                      const QSize &video_dim_disp,
                                      float        aspect,
                                      MythCodecID  av_codec_id,
-                                     void        *codec_private,
+                                     void        */*codec_private*/,
                                      bool        &aspect_only)
 {
     LOG(VB_PLAYBACK, LOG_INFO, LOC + QString("InputChanged(%1,%2,%3) %4->%5")
@@ -268,7 +270,7 @@ bool VideoOutputOpenGL::InputChanged(const QSize &video_dim_buf,
         StopEmbedding();
     }
 
-    if (!codec_is_std(av_codec_id))
+    if (!codec_is_std(av_codec_id) && !codec_is_mediacodec(av_codec_id))
     {
         LOG(VB_GENERAL, LOG_ERR, LOC + "New video codec is not supported.");
         errorState = kError_Unknown;
@@ -417,7 +419,7 @@ bool VideoOutputOpenGL::SetupOpenGL(void)
                                   window.GetVideoDispDim(), dvr,
                                   window.GetDisplayVideoRect(),
                                   window.GetVideoRect(), true,
-                                  options, !codec_is_std(video_codec_id));
+                                  options, !codec_sw_copy(video_codec_id));
     if (success)
     {
         bool temp_deinterlacing = m_deinterlacing;
@@ -473,7 +475,11 @@ void VideoOutputOpenGL::CreatePainter(void)
 bool VideoOutputOpenGL::CreateBuffers(void)
 {
     QMutexLocker locker(&gl_context_lock);
-    vbuffers.Init(31, true, 1, 12, 4, 2);
+    if (codec_is_mediacodec(video_codec_id))
+        // vbuffers.Init(4, true, 1, 2, 2, 1);
+        vbuffers.Init(8, true, 1, 4, 2, 1);
+    else
+        vbuffers.Init(31, true, 1, 12, 4, 2);
     return vbuffers.CreateBuffers(FMT_YV12,
                                   window.GetVideoDim().width(),
                                   window.GetVideoDim().height());
@@ -500,7 +506,7 @@ bool VideoOutputOpenGL::CreatePauseFrame(void)
     return true;
 }
 
-void VideoOutputOpenGL::ProcessFrame(VideoFrame *frame, OSD *osd,
+void VideoOutputOpenGL::ProcessFrame(VideoFrame *frame, OSD */*osd*/,
                                      FilterChain *filterList,
                                      const PIPMap &pipPlayers,
                                      FrameScanType scan)
@@ -525,7 +531,7 @@ void VideoOutputOpenGL::ProcessFrame(VideoFrame *frame, OSD *osd,
         gl_valid = true;
     }
 
-    bool sw_frame = codec_is_std(video_codec_id) &&
+    bool sw_frame = codec_sw_copy(video_codec_id) &&
                     video_codec_id != kCodec_NONE;
     bool deint_proc = m_deinterlacing && (m_deintFilter != NULL);
     OpenGLLocker ctx_lock(gl_context);
@@ -711,7 +717,7 @@ void VideoOutputOpenGL::PrepareFrame(VideoFrame *buffer, FrameScanType t,
         vbuffers.SetLastShownFrameToScratch();
 }
 
-void VideoOutputOpenGL::Show(FrameScanType scan)
+void VideoOutputOpenGL::Show(FrameScanType /*scan*/)
 {
     OpenGLLocker ctx_lock(gl_context);
     if (IsErrored())
@@ -734,6 +740,10 @@ QStringList VideoOutputOpenGL::GetAllowedRenderers(
     if (codec_is_std(myth_codec_id) && !getenv("NO_OPENGL"))
     {
         list << "opengl" << "opengl-lite";
+    }
+    else if (codec_is_mediacodec(myth_codec_id) && !getenv("NO_OPENGL"))
+    {
+        list << "opengl";
     }
 
     return list;
@@ -805,7 +815,7 @@ bool VideoOutputOpenGL::SetupDeinterlace(
     if (!m_deintfiltername.contains("opengl"))
     {
         gl_videochain->SetDeinterlacing(false);
-        gl_videochain->SetSoftwareDeinterlacer(QString::null);
+        gl_videochain->SetSoftwareDeinterlacer(QString());
         VideoOutput::SetupDeinterlace(interlaced, overridefilter);
         if (m_deinterlacing)
             gl_videochain->SetSoftwareDeinterlacer(m_deintfiltername);
@@ -890,7 +900,7 @@ bool VideoOutputOpenGL::SetDeinterlacingEnabled(bool enable)
     return m_deinterlacing;
 }
 
-void VideoOutputOpenGL::ShowPIP(VideoFrame  *frame,
+void VideoOutputOpenGL::ShowPIP(VideoFrame  */*frame*/,
                                 MythPlayer  *pipplayer,
                                 PIPLocation  loc)
 {
@@ -1046,14 +1056,14 @@ MythPainter *VideoOutputOpenGL::GetOSDPainter(void)
 }
 
 // virtual
-bool VideoOutputOpenGL::CanVisualise(AudioPlayer *audio, MythRender *render)
+bool VideoOutputOpenGL::CanVisualise(AudioPlayer *audio, MythRender */*render*/)
 {
     return VideoOutput::CanVisualise(audio, gl_context);
 }
 
 // virtual
 bool VideoOutputOpenGL::SetupVisualisation(AudioPlayer *audio,
-                                MythRender *render, const QString &name)
+                                MythRender */*render*/, const QString &name)
 {
     return VideoOutput::SetupVisualisation(audio, gl_context, name);
 }

@@ -12,7 +12,7 @@ class VideoOutputOpenGL : public VideoOutput
 {
   public:
     static void GetRenderOptions(render_opts &opts, QStringList &cpudeints);
-    VideoOutputOpenGL(const QString &profile = QString());
+    explicit VideoOutputOpenGL(const QString &profile = QString());
     virtual ~VideoOutputOpenGL();
 
     virtual bool Init(const QSize &video_dim_buf,
@@ -44,7 +44,7 @@ class VideoOutputOpenGL : public VideoOutput
     void EmbedInWidget(const QRect &rect);
     void StopEmbedding(void);
     virtual bool SetDeinterlacingEnabled(bool);
-    virtual bool SetupDeinterlace(bool i, const QString& ovrf="");
+    virtual bool SetupDeinterlace(bool interlaced, const QString& overridefilter="");
     void ShowPIP(VideoFrame  *frame,
                  MythPlayer  *pipplayer,
                  PIPLocation  loc);

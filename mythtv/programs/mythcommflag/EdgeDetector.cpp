@@ -9,7 +9,7 @@ using namespace std;
 
 // avlib/ffmpeg headers
 extern "C" {
-#include "libavcodec/avcodec.h"        // AVPicture
+#include "libavcodec/avcodec.h"        // AVFrame
 }
 
 // MythTV headers
@@ -25,7 +25,7 @@ namespace edgeDetector {
 using namespace frameAnalyzer;
 
 unsigned int *
-sgm_init_exclude(unsigned int *sgm, const AVPicture *src, int srcheight,
+sgm_init_exclude(unsigned int *sgm, const AVFrame *src, int srcheight,
         int excluderow, int excludecol, int excludewidth, int excludeheight)
 {
     /*
@@ -62,7 +62,7 @@ sgm_init_exclude(unsigned int *sgm, const AVPicture *src, int srcheight,
 
 #ifdef LATER
 unsigned int *
-sgm_init(unsigned int *sgm, const AVPicture *src, int srcheight)
+sgm_init(unsigned int *sgm, const AVFrame *src, int srcheight)
 {
     return sgm_init_exclude(sgm, src, srcheight, 0, 0, 0, 0);
 }
@@ -74,7 +74,7 @@ static int sort_ascending(const void *aa, const void *bb)
 }
 
 static int
-edge_mark(AVPicture *dst, int dstheight,
+edge_mark(AVFrame *dst, int dstheight,
         int extratop, int extraright, int extrabottom, int extraleft,
         const unsigned int *sgm, unsigned int *sgmsorted, int percentile,
         int excluderow, int excludecol, int excludewidth, int excludeheight)
@@ -92,7 +92,7 @@ edge_mark(AVPicture *dst, int dstheight,
     const int           dstwidth = dst->linesize[0];
     const int           padded_width = extraleft + dstwidth + extraright;
     unsigned int        thresholdval;
-    int                 nn, dstnn, ii, rr, cc, first, last, last2;
+    int                 nn, dstnn, ii, rr, cc, first;
 
     (void)extrabottom;  /* gcc */
 
@@ -148,7 +148,7 @@ edge_mark(AVPicture *dst, int dstheight,
     {
         unsigned int    newthresholdval;
 
-        last2 = nn - 1;
+        int last, last2 = nn - 1;
         for (last = ii; last < last2 && sgmsorted[last] == thresholdval;
                 last++) ;
         if (sgmsorted[last] != thresholdval)
@@ -180,7 +180,7 @@ edge_mark(AVPicture *dst, int dstheight,
 }
 
 #ifdef LATER
-int edge_mark_uniform(AVPicture *dst, int dstheight, int extramargin,
+int edge_mark_uniform(AVFrame *dst, int dstheight, int extramargin,
         const unsigned int *sgm, unsigned int *sgmsorted,
         int percentile)
 {
@@ -190,7 +190,7 @@ int edge_mark_uniform(AVPicture *dst, int dstheight, int extramargin,
 }
 #endif /* LATER */
 
-int edge_mark_uniform_exclude(AVPicture *dst, int dstheight, int extramargin,
+int edge_mark_uniform_exclude(AVFrame *dst, int dstheight, int extramargin,
         const unsigned int *sgm, unsigned int *sgmsorted, int percentile,
         int excluderow, int excludecol, int excludewidth, int excludeheight)
 {

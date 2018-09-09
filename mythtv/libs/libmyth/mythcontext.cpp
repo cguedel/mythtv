@@ -7,6 +7,10 @@
 #include <QTcpSocket>
 #include <QEventLoop>
 
+#ifdef Q_OS_ANDROID
+#include <QtAndroidExtras>
+#endif
+
 #include <cmath>
 #include <iostream>
 
@@ -288,8 +292,6 @@ void MythContextPrivate::TempMainWindow(bool languagePrompt)
 
     SilenceDBerrors();
 
-    loadSettingsCacheOverride();
-
 #ifdef Q_OS_MAC
     // Qt 4.4 has window-focus problems
     gCoreContext->OverrideSettingForSession("RunFrontendInWindow", "1");
@@ -327,9 +329,11 @@ void MythContextPrivate::EndTempWindow(void)
 /**
  * Check if a port is open and sort out the link-local scope.
  *
- * \param host Host or IP address. Will be updated with link-local
- * scope if needed.
-*/
+ * \param host      Host or IP address. Will be updated with link-local
+ *                  scope if needed.
+ * \param port      Port number to check.
+ * \param timeLimit Limit in seconds for testing.
+ */
 
 bool MythContextPrivate::checkPort(QString &host, int port, int timeLimit)
 {
@@ -347,6 +351,7 @@ bool MythContextPrivate::Init(const bool gui,
 {
     gCoreContext->GetDB()->IgnoreDatabase(ignoreDB);
     m_gui = gui;
+    loadSettingsCacheOverride();
 
     if (gCoreContext->IsFrontend())
         needsBackend = true;
@@ -595,16 +600,54 @@ bool MythContextPrivate::LoadDatabaseSettings(void)
                     "MCP: Error, could not determine host name." + ENO);
             localhostname[0] = '\0';
         }
+#ifdef Q_OS_ANDROID
+#define ANDROID_EXCEPTION_CHECK \
+  if (env->ExceptionCheck()) { \
+    env->ExceptionClear(); \
+    exception=true; \
+  }
+        if (strcmp(localhostname, "localhost") == 0
+            || localhostname[0] == '\0')
+        {
+            hostname = "android";
+            bool exception=false;
+            QAndroidJniEnvironment env;
+            QAndroidJniObject myID = QAndroidJniObject::fromString("android_id");
+            QAndroidJniObject activity = QtAndroid::androidActivity();
+            ANDROID_EXCEPTION_CHECK;
+            QAndroidJniObject appctx = activity.callObjectMethod
+                ("getApplicationContext","()Landroid/content/Context;");
+            ANDROID_EXCEPTION_CHECK;
+            QAndroidJniObject contentR = appctx.callObjectMethod
+                ("getContentResolver", "()Landroid/content/ContentResolver;");
+            ANDROID_EXCEPTION_CHECK;
+            QAndroidJniObject androidId = QAndroidJniObject::callStaticObjectMethod
+                ("android/provider/Settings$Secure","getString",
+                 "(Landroid/content/ContentResolver;Ljava/lang/String;)Ljava/lang/String;",
+                 contentR.object<jobject>(),
+                 myID.object<jstring>());
+            ANDROID_EXCEPTION_CHECK;
+            if (exception)
+                LOG(VB_GENERAL, LOG_ALERT,
+                    "Java exception looking for android id");
+            else
+                hostname = QString("android-%1").arg(androidId.toString());
+        }
+        else
+            hostname = localhostname;
+#else
         hostname = localhostname;
-        LOG(VB_GENERAL, LOG_NOTICE, "Empty LocalHostName.");
+#endif
+        LOG(VB_GENERAL, LOG_INFO, "Empty LocalHostName. This is typical.");
     }
     else
     {
         m_DBparams.localEnabled = true;
     }
 
-    LOG(VB_GENERAL, LOG_INFO, QString("Using localhost value of %1")
-            .arg(hostname));
+    LOG(VB_GENERAL, LOG_INFO, QString("Using a profile name of: '%1' (Usually the "
+                                      "same as this host's name.)")
+                                      .arg(hostname));
     gCoreContext->SetLocalHostname(hostname);
 
     return ok;
@@ -778,13 +821,13 @@ bool MythContextPrivate::PromptForDatabaseParams(const QString &error)
  */
 QString MythContextPrivate::TestDBconnection(bool prompt)
 {
-    QString err    = QString::null;
+    QString err;
     QString host;
 
     // Jan 20, 2017
     // Changed to use port check instead of ping
 
-    int port;
+    int port = 0;
 
     // 1 = db awake, 2 = db listening, 3 = db connects,
     // 4 = backend awake, 5 = backend listening
@@ -804,9 +847,17 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
         {"start","dbAwake","dbStarted","dbConnects","beWOL","beAwake",
             "success" };
 
+    int msStartupScreenDelay = gCoreContext->GetNumSetting("StartupScreenDelay",2);
+    if (msStartupScreenDelay > 0)
+        msStartupScreenDelay *= 1000;
     do
     {
-        host = m_DBparams.dbHostName;
+        QElapsedTimer timer;
+        timer.start();
+        if (m_DBparams.dbHostName.isNull() && m_DBhostCp.length())
+            host = m_DBhostCp;
+        else
+            host = m_DBparams.dbHostName;
         port = m_DBparams.dbPort;
         if (port == 0)
             port = 3306;
@@ -845,8 +896,8 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
             // After that show the GUI (if this is a GUI program)
 
             LOG(VB_GENERAL, LOG_INFO,
-                 QString("Start up testing connections. DB %1, BE %2, attempt %3, status %4")
-                      .arg(host).arg(backendIP).arg(attempt).arg(guiStatuses[startupState]));
+                 QString("Start up testing connections. DB %1, BE %2, attempt %3, status %4, Delay: %5")
+                      .arg(host).arg(backendIP).arg(attempt).arg(guiStatuses[startupState]).arg(msStartupScreenDelay) );
 
             int useTimeout = wakeupTime;
             if (attempt == 0)
@@ -854,7 +905,7 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
 
             if (m_gui && !m_guiStartup)
             {
-                if (attempt > 0)
+                if (msStartupScreenDelay==0 || timer.hasExpired(msStartupScreenDelay))
                 {
                     ShowGuiStartup();
                     if (m_guiStartup)
@@ -878,12 +929,12 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
                         break;
                 }
                 startupState = st_dbAwake;
-                // Fall through to next case
+                [[clang::fallthrough]];
             case st_dbAwake:
                 if (!checkPort(host, port, useTimeout))
                     break;
                 startupState = st_dbStarted;
-                // Fall through to next case
+                [[clang::fallthrough]];
             case st_dbStarted:
                 // If the database is connecting with link-local
                 // address, it may have changed
@@ -904,7 +955,7 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
                     break;
                 }
                 startupState = st_dbConnects;
-                // Fall through to next case
+                [[clang::fallthrough]];
             case st_dbConnects:
                 if (needsBackend)
                 {
@@ -933,7 +984,7 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
                 backendIP = gCoreContext->GetSettingOnHost
                     ("BackendServerAddr", masterserver);
                 backendPort = gCoreContext->GetMasterServerPort();
-                // Fall through to next case
+                [[clang::fallthrough]];
             case st_beWOL:
                 if (!beWOLCmd.isEmpty()) {
                     if (attempt > 0)
@@ -942,11 +993,15 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
                         break;
                 }
                 startupState = st_beAwake;
-                // Fall through to next case
+                [[clang::fallthrough]];
             case st_beAwake:
                 if (!checkPort(backendIP, backendPort, useTimeout))
                     break;
                 startupState = st_success;
+                [[clang::fallthrough]];
+            case st_success:
+                // Quiet compiler warning.
+                break;
             }
             if (m_guiStartup)
             {
@@ -966,6 +1021,13 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
         LOG(VB_GENERAL, LOG_INFO,
              QString("Start up failure. host %1, status %2")
                   .arg(host).arg(stateMsg));
+
+        if (m_gui && !m_guiStartup)
+        {
+            ShowGuiStartup();
+            if (m_guiStartup)
+                m_guiStartup->setTotal(progressTotal);
+        }
 
         if (m_guiStartup
           && !m_guiStartup->m_Exit
@@ -1006,7 +1068,7 @@ QString MythContextPrivate::TestDBconnection(bool prompt)
     EnableDBerrors();
     ResetDatabase();
 
-    return QString::null;
+    return QString();
 }
 
 // Show the Gui Startup window.
@@ -1175,7 +1237,7 @@ int MythContextPrivate::UPnPautoconf(const int milliSeconds)
 
     // We don't actually know the backend's access PIN, so this will
     // only work for ones that have PIN access disabled (i.e. 0000)
-    int ret = (UPnPconnect(BE, QString::null)) ? 1 : -1;
+    int ret = (UPnPconnect(BE, QString())) ? 1 : -1;
 
     BE->DecrRef();
 
@@ -1313,7 +1375,7 @@ bool MythContextPrivate::event(QEvent *e)
             m_registration = GetNotificationCenter()->Register(this);
         }
 
-        MythEvent *me = (MythEvent*)e;
+        MythEvent *me = static_cast<MythEvent*>(e);
         if (me->Message() == "VERSION_MISMATCH" && (1 == me->ExtraDataCount()))
             ShowVersionMismatchPopup(me->ExtraData(0).toUInt());
         else if (me->Message() == "CONNECTION_FAILURE")
@@ -1421,7 +1483,8 @@ void MythContextPrivate::processEvents(void)
 const QString MythContextPrivate::settingsToSave[] =
 { "Theme", "Language", "Country", "GuiHeight",
   "GuiOffsetX", "GuiOffsetY", "GuiWidth", "RunFrontendInWindow",
-  "AlwaysOnTop", "HideMouseCursor", "ThemePainter" };
+  "AlwaysOnTop", "HideMouseCursor", "ThemePainter", "libCECEnabled",
+  "StartupScreenDelay" };
 
 
 bool MythContextPrivate::saveSettingsCache(void)
@@ -1456,6 +1519,8 @@ void MythContextPrivate::loadSettingsCacheOverride(void)
     static const int arraySize = sizeof(settingsToSave)/sizeof(settingsToSave[0]);
     for (int ix = 0; ix < arraySize; ix++)
     {
+        if (!gCoreContext->GetSetting(settingsToSave[ix],QString()).isEmpty())
+            continue;
         QString value = config.GetValue("Settings/"+settingsToSave[ix],QString());
         if (!value.isEmpty())
             gCoreContext->OverrideSettingForSession(settingsToSave[ix], value);
@@ -1519,13 +1584,13 @@ bool MythContext::Init(const bool gui,
                        const bool disableAutoDiscovery,
                        const bool ignoreDB)
 {
-    SetDisableEventPopup(true);
-
     if (!d)
     {
         LOG(VB_GENERAL, LOG_EMERG, LOC + "Init() Out-of-memory");
         return false;
     }
+
+    SetDisableEventPopup(true);
 
     if (app_binary_version != MYTH_BINARY_VERSION)
     {
@@ -1591,7 +1656,9 @@ bool MythContext::Init(const bool gui,
     saveSettingsCache();
     if (d->m_settingsCacheDirty)
     {
+#ifndef Q_OS_ANDROID
         DestroyMythMainWindow();
+#endif
         d->m_settingsCacheDirty = false;
     }
     gCoreContext->ActivateSettingsCache(true);

@@ -196,7 +196,6 @@ class GuideStatus
 public:
     GuideStatus(unsigned int firstRow, unsigned int numRows,
                 const QVector<int> &channums,
-                int channelInfos_size,
                 const MythRect &gg_programRect,
                 int gg_channelCount,
                 const QDateTime &currentStartTime,
@@ -207,7 +206,6 @@ public:
                 bool verticalLayout,
                 const QDateTime &firstTime, const QDateTime &lastTime)
         : m_firstRow(firstRow), m_numRows(numRows), m_channums(channums),
-          m_channelInfos_size(channelInfos_size),
           m_gg_programRect(gg_programRect), m_gg_channelCount(gg_channelCount),
           m_currentStartTime(currentStartTime),
           m_currentEndTime(currentEndTime),
@@ -217,7 +215,6 @@ public:
           m_firstTime(firstTime), m_lastTime(lastTime) {}
     const unsigned int m_firstRow, m_numRows;
     const QVector<int> m_channums;
-    const int m_channelInfos_size;
     const MythRect m_gg_programRect;
     const int m_gg_channelCount;
     const QDateTime m_currentStartTime, m_currentEndTime;
@@ -255,7 +252,6 @@ public:
           m_firstRow(gs.m_firstRow),
           m_numRows(gs.m_numRows),
           m_channums(gs.m_channums),
-          m_channelInfos_size(gs.m_channelInfos_size),
           m_gg_programRect(gs.m_gg_programRect),
           m_gg_channelCount(gs.m_gg_channelCount),
           m_currentStartTime(gs.m_currentStartTime),
@@ -294,7 +290,7 @@ public:
             if (!m_proglists[i])
                 m_proglists[i] =
                     m_guide->getProgramListFromProgram(m_channums[i]);
-            fillProgramRowInfosWith(row, m_channums[i],
+            fillProgramRowInfosWith(row,
                                     m_currentStartTime,
                                     m_proglists[i]);
         }
@@ -308,13 +304,12 @@ public:
     }
 
 private:
-    void fillProgramRowInfosWith(int row, int chanNum, QDateTime start,
+    void fillProgramRowInfosWith(int row, QDateTime start,
                                  ProgramList *proglist);
 
     const unsigned int m_firstRow;
     const unsigned int m_numRows;
     const QVector<int> m_channums;
-    const int m_channelInfos_size;
     const MythRect m_gg_programRect;
     const int m_gg_channelCount;
     const QDateTime m_currentStartTime;
@@ -694,8 +689,7 @@ GuideGrid::~GuideGrid()
 bool GuideGrid::keyPressEvent(QKeyEvent *event)
 {
     QStringList actions;
-    bool handled = false;
-    handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
 
     if (handled)
         return true;
@@ -708,7 +702,7 @@ bool GuideGrid::keyPressEvent(QKeyEvent *event)
         {
             QString chanNum = actions[0];
             bool isNum;
-            chanNum.toInt(&isNum);
+            (void)chanNum.toInt(&isNum);
             if (isNum)
             {
                 // see if we can find a matching channel before creating the JumpToChannel otherwise
@@ -1386,8 +1380,10 @@ void GuideGrid::fillChannelInfos(bool gotostartchannel)
     m_currentStartChannel = 0;
 
     uint avail = 0;
+    const ChannelUtil::OrderBy ordering = m_channelOrdering == "channum" ?
+        ChannelUtil::kChanOrderByChanNum : ChannelUtil::kChanOrderByName;
     ChannelInfoList channels = ChannelUtil::LoadChannels(0, 0, avail, true,
-                                         ChannelUtil::kChanOrderByChanNum,
+                                         ordering,
                                          ChannelUtil::kChanGroupByChanid,
                                          0,
                                          (m_changrpid < 0) ? 0 : m_changrpid);
@@ -1638,7 +1634,7 @@ void GuideGrid::fillProgramRowInfos(int firstRow, bool useExistingData)
 
     m_channelList->SetItemCurrent(m_currentRow);
 
-    GuideStatus gs(firstRow, chanNums.size(), chanNums, m_channelInfos.size(),
+    GuideStatus gs(firstRow, chanNums.size(), chanNums,
                    m_guideGrid->GetArea(), m_guideGrid->getChannelCount(),
                    m_currentStartTime, m_currentEndTime, m_currentStartChannel,
                    m_currentRow, m_currentCol, m_channelCount, m_timeCount,
@@ -1648,7 +1644,7 @@ void GuideGrid::fillProgramRowInfos(int firstRow, bool useExistingData)
     m_threadPool.start(new GuideHelper(this, updater), "GuideHelper");
 }
 
-void GuideUpdateProgramRow::fillProgramRowInfosWith(int row, int chanNum,
+void GuideUpdateProgramRow::fillProgramRowInfosWith(int row,
                                                     QDateTime start,
                                                     ProgramList *proglist)
 {
@@ -1694,9 +1690,11 @@ void GuideUpdateProgramRow::fillProgramRowInfosWith(int row, int chanNum,
         {
             if (unknown)
             {
-                proginfo->spread++;
-                proginfo->SetScheduledEndTime(
-                    proginfo->GetScheduledEndTime().addSecs(5 * 60));
+                if (proginfo)
+                {
+                    proginfo->spread++;
+                    proginfo->SetScheduledEndTime(proginfo->GetScheduledEndTime().addSecs(5 * 60));
+                }
             }
             else
             {
@@ -1754,7 +1752,7 @@ void GuideUpdateProgramRow::fillProgramRowInfosWith(int row, int chanNum,
             (double) m_timeCount;
     }
 
-    int arrow = 0;
+    int arrow = GridTimeNormal;
     int cnt = 0;
     int spread = 1;
     QDateTime lastprog;
@@ -1770,11 +1768,11 @@ void GuideUpdateProgramRow::fillProgramRowInfosWith(int row, int chanNum,
         spread = 1;
         if (pginfo->GetScheduledStartTime() != lastprog)
         {
-            arrow = 0;
+            arrow = GridTimeNormal;
             if (pginfo->GetScheduledStartTime() < m_firstTime.addSecs(-300))
-                arrow = arrow + 1;
+                arrow |= GridTimeStartsBefore;
             if (pginfo->GetScheduledEndTime() > m_lastTime.addSecs(2100))
-                arrow = arrow + 2;
+                arrow |= GridTimeEndsAfter;
 
             if (pginfo->spread != -1)
             {
@@ -1886,7 +1884,7 @@ void GuideGrid::customEvent(QEvent *event)
 {
     if ((MythEvent::Type)(event->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QString message = me->Message();
 
         if (message == "SCHEDULE_CHANGE")

@@ -119,7 +119,7 @@ class MythCookieJar : public QNetworkCookieJar
 {
   public:
     MythCookieJar();
-    MythCookieJar(MythCookieJar &old);
+    void copyAllCookies(MythCookieJar &old);
     void load(const QString &filename);
     void save(const QString &filename);
 };
@@ -907,6 +907,7 @@ bool MythDownloadManager::downloadNow(MythDownloadInfo *dlInfo, bool deleteInfo)
     return success;
 }
 
+#ifndef _WIN32
 /** \brief Download blocking methods with link-local address.
  *
  * Special processing for IPV6 link-local addresses, which
@@ -927,7 +928,6 @@ bool MythDownloadManager::downloadNow(MythDownloadInfo *dlInfo, bool deleteInfo)
  * \param dlInfo     Information on URI to download.
  * \return true if download was successful, false otherwise.
  */
- #ifndef _WIN32
 bool MythDownloadManager::downloadNowLinkLocal(MythDownloadInfo *dlInfo, bool deleteInfo)
 {
     bool isOK = true;
@@ -1050,7 +1050,8 @@ bool MythDownloadManager::downloadNowLinkLocal(MythDownloadInfo *dlInfo, bool de
 #endif
 
 /** \brief Cancel a queued or current download.
- *  \param url for download to cancel
+ *  \param url URL for download to cancel
+ *  \param block If true, wait until all the cancellations have finished.
  */
 void MythDownloadManager::cancelDownload(const QString &url, bool block)
 {
@@ -1058,7 +1059,8 @@ void MythDownloadManager::cancelDownload(const QString &url, bool block)
 }
 
 /** \brief Cancel a queued or current download.
- *  \param list of urls for download to cancel
+ *  \param urls List of URLs for download to cancel
+ *  \param block If true, wait until all the cancellations have finished.
  */
 void MythDownloadManager::cancelDownload(const QStringList &urls, bool block)
 {
@@ -1710,7 +1712,8 @@ QNetworkCookieJar *MythDownloadManager::copyCookieJar(void)
         return NULL;
 
     MythCookieJar *inJar = static_cast<MythCookieJar *>(m_manager->cookieJar());
-    MythCookieJar *outJar = new MythCookieJar(*inJar);
+    MythCookieJar *outJar = new MythCookieJar;
+    outJar->copyAllCookies(*inJar);
 
     return static_cast<QNetworkCookieJar *>(outJar);
 }
@@ -1725,7 +1728,8 @@ void MythDownloadManager::refreshCookieJar(QNetworkCookieJar *jar)
         delete m_inCookieJar;
 
     MythCookieJar *inJar = static_cast<MythCookieJar *>(jar);
-    MythCookieJar *outJar = new MythCookieJar(*inJar);
+    MythCookieJar *outJar = new MythCookieJar;
+    outJar->copyAllCookies(*inJar);
     m_inCookieJar = static_cast<QNetworkCookieJar *>(outJar);
 
     QMutexLocker locker2(&m_queueWaitLock);
@@ -1739,7 +1743,8 @@ void MythDownloadManager::updateCookieJar(void)
     QMutexLocker locker(&m_cookieLock);
 
     MythCookieJar *inJar = static_cast<MythCookieJar *>(m_inCookieJar);
-    MythCookieJar *outJar = new MythCookieJar(*inJar);
+    MythCookieJar *outJar = new MythCookieJar;
+    outJar->copyAllCookies(*inJar);
     m_manager->setCookieJar(static_cast<QNetworkCookieJar *>(outJar));
 
     delete m_inCookieJar;
@@ -1749,7 +1754,7 @@ void MythDownloadManager::updateCookieJar(void)
 QString MythDownloadManager::getHeader(const QUrl& url, const QString& header)
 {
     if (!m_manager || !m_manager->cache())
-        return QString::null;
+        return QString();
 
     m_infoLock->lock();
     QNetworkCacheMetaData metadata = m_manager->cache()->metaData(url);
@@ -1778,14 +1783,14 @@ QString MythDownloadManager::getHeader(const QNetworkCacheMetaData &cacheData,
         }
     }
 
-    return QString::null;
+    return QString();
 }
 
 
-/** \brief Creates a MythCookieJar from another MythCookieJar
+/** \brief Copies all cookies from one MythCookieJar to another
  *  \param old the MythCookieJar to copy
  */
-MythCookieJar::MythCookieJar(MythCookieJar &old)
+void MythCookieJar::copyAllCookies(MythCookieJar &old)
 {
     const QList<QNetworkCookie> cookieList = old.allCookies();
     setAllCookies(cookieList);

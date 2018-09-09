@@ -264,7 +264,6 @@ uint TVBrowseHelper::GetChanId(
 
 /**
  *  \brief Fetches information on the desired program from the backend.
- *  \param enc RemoteEncoder to query, if null query the actx->recorder.
  *  \param direction BrowseDirection to get information on.
  *  \param infoMap InfoMap to fill in with returned data
  */
@@ -410,15 +409,6 @@ void TVBrowseHelper::GetNextProgramDB(
     infoMap["dbstarttime"] = prog->GetScheduledStartTime(MythDate::ISODate);
 }
 
-inline static QString toString(const InfoMap &infoMap, const QString &sep="\n")
-{
-    QString str("");
-    InfoMap::const_iterator it = infoMap.begin();
-    for (; it != infoMap.end() ; ++it)
-        str += QString("[%1]:%2%3").arg(it.key()).arg(*it).arg(sep);
-    return str;
-}
-
 void TVBrowseHelper::run()
 {
     RunProlog();
@@ -501,7 +491,7 @@ void TVBrowseHelper::run()
 
                 m_lock.lock();
                 m_chanid  = chanid;
-                m_channum = QString::null;
+                m_channum.clear();
                 m_lock.unlock();
             }
             else

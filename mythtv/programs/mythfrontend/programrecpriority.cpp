@@ -472,9 +472,8 @@ bool ProgramRecPriority::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -1333,12 +1332,12 @@ void ProgramRecPriority::UpdateList()
     m_programList->Reset();
 
     vector<ProgramRecPriorityInfo*>::iterator it;
-    MythUIButtonListItem *item;
     for (it = m_sortedProgram.begin(); it != m_sortedProgram.end(); ++it)
     {
         ProgramRecPriorityInfo *progInfo = *it;
 
-        item = new MythUIButtonListItem(m_programList, "",
+        MythUIButtonListItem *item =
+               new MythUIButtonListItem(m_programList, "",
                                                 qVariantFromValue(progInfo));
 
         int progRecPriority = progInfo->GetRecordingPriority();

@@ -204,8 +204,6 @@ void JoystickMenuThread::run(void)
 {
     RunProlog();
 
-    int rc;
-
     fd_set readfds;
     struct js_event js;
     struct timeval timeout;
@@ -224,7 +222,7 @@ void JoystickMenuThread::run(void)
         timeout.tv_sec = 0;
         timeout.tv_usec = 100000;
 
-        rc = select(m_fd + 1, &readfds, NULL, NULL, &timeout);
+        int rc = select(m_fd + 1, &readfds, NULL, NULL, &timeout);
         if (rc == -1)
         {
             /*----------------------------------------------------------------
@@ -312,12 +310,7 @@ void JoystickMenuThread::EmitKey(QString code)
         QCoreApplication::postEvent(m_mainWindow, new JoystickKeycodeEvent(code,
                                 keycode, true));
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-    unsigned int i;
-#else
-    int i;
-#endif
-    for (i = 0; i < a.count(); i++)
+    for (int i = 0; i < a.count(); i++)
     {
         keycode = a[i];
 

@@ -67,13 +67,15 @@ VideoOutputVDPAU::VideoOutputVDPAU()
 {
     if (gCoreContext->GetNumSetting("UseVideoModes", 0))
         display_res = DisplayRes::GetDisplayRes(true);
-    memset(&m_context, 0, sizeof(AVVDPAUContext));
+    m_context = av_vdpau_alloc_context();
+    memset(m_context, 0, sizeof(AVVDPAUContext));
 }
 
 VideoOutputVDPAU::~VideoOutputVDPAU()
 {
     QMutexLocker locker(&m_lock);
     TearDown();
+    av_freep(&m_context);
 }
 
 void VideoOutputVDPAU::TearDown(void)
@@ -92,11 +94,14 @@ bool VideoOutputVDPAU::Init(const QSize &video_dim_buf,
                             WId winid, const QRect &win_rect,
                             MythCodecID codec_id)
 {
-    // Attempt to free up as much video memory as possible
-    // only works when using the VDPAU painter for the UI
-    MythPainter *painter = GetMythPainter();
-    if (painter)
-        painter->FreeResources();
+    if (!m_win) // Only if this is the first initialization
+    {
+        // Attempt to free up as much video memory as possible
+        // only works when using the VDPAU painter for the UI
+        MythPainter *painter = GetMythPainter();
+        if (painter)
+            painter->FreeResources();
+    }
 
     m_win = winid;
     QMutexLocker locker(&m_lock);
@@ -329,7 +334,7 @@ bool VideoOutputVDPAU::SetDeinterlacingEnabled(bool interlaced)
 }
 
 bool VideoOutputVDPAU::SetupDeinterlace(bool interlaced,
-                                        const QString &override)
+                                        const QString &overridefilter)
 {
     m_lock.lock();
     if (!m_render)
@@ -345,7 +350,7 @@ bool VideoOutputVDPAU::SetupDeinterlace(bool interlaced,
 
     if (enable)
     {
-        m_deintfiltername = db_vdisp_profile->GetFilteredDeint(override);
+        m_deintfiltername = db_vdisp_profile->GetFilteredDeint(overridefilter);
         if (m_deintfiltername.contains("vdpau"))
         {
             uint features = kVDPFeatNone;
@@ -395,10 +400,10 @@ bool VideoOutputVDPAU::ApproveDeintFilter(const QString &filtername) const
     return filtername.contains("vdpau");
 }
 
-void VideoOutputVDPAU::ProcessFrame(VideoFrame *frame, OSD *osd,
-                                    FilterChain *filterList,
+void VideoOutputVDPAU::ProcessFrame(VideoFrame *frame, OSD */*osd*/,
+                                    FilterChain */*filterList*/,
                                     const PIPMap &pipPlayers,
-                                    FrameScanType scan)
+                                    FrameScanType /*scan*/)
 {
     QMutexLocker locker(&m_lock);
     CHECK_ERROR("ProcessFrame");
@@ -699,7 +704,7 @@ void VideoOutputVDPAU::DrawSlice(VideoFrame *frame, int /* x */, int /* y */, in
     m_render->Decode(m_decoder, render, info);
 }
 
-void VideoOutputVDPAU::Show(FrameScanType scan)
+void VideoOutputVDPAU::Show(FrameScanType /*scan*/)
 {
     QMutexLocker locker(&m_lock);
     CHECK_ERROR("Show");
@@ -724,7 +729,7 @@ bool VideoOutputVDPAU::InputChanged(const QSize &video_dim_buf,
                                     const QSize &video_dim_disp,
                                     float        aspect,
                                     MythCodecID  av_codec_id,
-                                    void        *codec_private,
+                                    void        */*codec_private*/,
                                     bool        &aspect_only)
 {
     LOG(VB_PLAYBACK, LOG_INFO, LOC +
@@ -1354,5 +1359,5 @@ void VideoOutputVDPAU::SetVideoFlip(void)
 
 void* VideoOutputVDPAU::GetDecoderContext(unsigned char* /*buf*/, uint8_t*& /*id*/)
 {
-    return &m_context;
+    return m_context;
 }

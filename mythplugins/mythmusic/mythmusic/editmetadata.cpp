@@ -92,9 +92,8 @@ bool EditMetadataCommon::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -115,9 +114,7 @@ bool EditMetadataCommon::keyPressEvent(QKeyEvent *event)
 
 void EditMetadataCommon::updateMetadata()
 {
-    MythUITextEdit *edit = NULL;
-
-    edit = dynamic_cast<MythUITextEdit *>(GetChild("albumedit"));
+    MythUITextEdit *edit = dynamic_cast<MythUITextEdit *>(GetChild("albumedit"));
     if (edit)
         m_metadata->setAlbum(edit->GetText());
 
@@ -472,9 +469,8 @@ bool EditMetadataDialog::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -813,7 +809,7 @@ void EditMetadataDialog::customEvent(QEvent *event)
     }
     else if (event->type() == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QStringList tokens = me->Message().split(" ", QString::SkipEmptyParts);
 
         if (!tokens.isEmpty())
@@ -983,9 +979,8 @@ bool EditAlbumartDialog::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -1211,7 +1206,7 @@ void EditAlbumartDialog::customEvent(QEvent *event)
     }
     else if (event->type() == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QStringList tokens = me->Message().split(" ", QString::SkipEmptyParts);
 
         if (!tokens.isEmpty())

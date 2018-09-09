@@ -27,11 +27,8 @@ KeyGrabPopupBox::~KeyGrabPopupBox()
 
 bool KeyGrabPopupBox::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("controls-ui.xml", "keygrabpopup", this);
-
+    bool foundtheme = LoadWindowFromXML("controls-ui.xml", "keygrabpopup", this);
     if (!foundtheme)
         return false;
 
@@ -96,7 +93,9 @@ bool KeyGrabPopupBox::keyPressEvent(QKeyEvent *event)
             QString modifiers;
 
             /* key modifier strings as defined by the QT docs */
-            if (event->modifiers() & Qt::ShiftModifier)
+            if (event->modifiers() & Qt::ShiftModifier
+              && keycode > 0x7f
+              && keycode != Qt::Key_Backtab)
                 modifiers += "Shift+";
             if (event->modifiers() & Qt::ControlModifier)
                 modifiers += "Ctrl+";

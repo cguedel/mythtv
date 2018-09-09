@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <fcntl.h>
 
 #include <QDir>
@@ -5,12 +7,15 @@
 #include <QCryptographicHash>
 #include <QPainter>
 
+#if CONFIG_LIBBLURAY_EXTERNAL
+#include "libbluray/log_control.h"
+#include "libbluray/meta_data.h"
+#include "libbluray/overlay.h"
+#else
 #include "util/log_control.h"
-#include "libbluray/bdnav/mpls_parse.h"
 #include "libbluray/bdnav/meta_data.h"
-#include "libbluray/bdnav/navigation.h"
-#include "libbluray/bdnav/bdparse.h"
 #include "libbluray/decoders/overlay.h"
+#endif
 #include "libbluray/keys.h"              // for ::BD_VK_POPUP, ::BD_VK_0, etc
 
 #include "mythcdrom.h"
@@ -526,7 +531,15 @@ void BDRingBuffer::ProgressUpdate(void)
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
 }
 
-bool BDRingBuffer::OpenFile(const QString &lfilename, uint retry_ms)
+/** \fn BDRingBuffer::OpenFile(const QString &, uint)
+ *  \brief Opens a bluray device for reading.
+ *
+ *  \param lfilename   Path of the bluray device to read.
+ *  \param retry_ms    Ignored. This value is part of the API
+ *                     inherited from the parent class.
+ *  \return Returns true if the bluray was opened.
+ */
+bool BDRingBuffer::OpenFile(const QString &lfilename, uint /*retry_ms*/)
 {
     safefilename = lfilename;
     filename = lfilename;
@@ -1135,22 +1148,22 @@ double BDRingBuffer::GetFrameRate(void)
         uint8_t rate = m_currentTitleInfo->clips->video_streams->rate;
         switch (rate)
         {
-            case BD_VIDEO_RATE_24000_1001:
+            case BLURAY_VIDEO_RATE_24000_1001:
                 return 23.97;
                 break;
-            case BD_VIDEO_RATE_24:
+            case BLURAY_VIDEO_RATE_24:
                 return 24;
                 break;
-            case BD_VIDEO_RATE_25:
+            case BLURAY_VIDEO_RATE_25:
                 return 25;
                 break;
-            case BD_VIDEO_RATE_30000_1001:
+            case BLURAY_VIDEO_RATE_30000_1001:
                 return 29.97;
                 break;
-            case BD_VIDEO_RATE_50:
+            case BLURAY_VIDEO_RATE_50:
                 return 50;
                 break;
-            case BD_VIDEO_RATE_60000_1001:
+            case BLURAY_VIDEO_RATE_60000_1001:
                 return 59.94;
                 break;
             default:
@@ -1229,7 +1242,7 @@ void BDRingBuffer::ClickButton(int64_t pts, uint16_t x, uint16_t y)
     if (!bdnav)
         return;
 
-    if (pts <= 0 || x <= 0 || y <= 0)
+    if (pts <= 0 || x == 0 || y == 0)
         return;
 
     bd_mouse_select(bdnav, pts, x, y);
@@ -1339,14 +1352,11 @@ void BDRingBuffer::HandleBDEvent(BD_EVENT &ev)
             LOG(VB_PLAYBACK, LOG_INFO, LOC +
                 QString("EVENT_PLAYITEM %1").arg(ev.param));
             {
-                int64_t diff = 0;
-
                 if (m_currentPlayitem != (int)ev.param)
                 {
                     int64_t out = m_currentTitleInfo->clips[m_currentPlayitem].out_time;
                     int64_t in  = m_currentTitleInfo->clips[ev.param].in_time;
-
-                    diff = in - out;
+                    int64_t diff = in - out;
 
                     if (diff != 0 && m_processState == PROCESS_NORMAL)
                     {
@@ -1616,15 +1626,12 @@ bool BDRingBuffer::RestoreBDStateSnapshot(const QString& state)
 
     }
 
-    uint32_t title;
-    uint64_t time;
-    uint64_t angle = 0;
-
     if (settings.contains("title") &&
         settings.contains("time") )
     {
-        title = (uint32_t)settings["title"];
-        time  = (uint64_t)settings["time"];
+        uint32_t title = (uint32_t)settings["title"];
+        uint64_t time  = (uint64_t)settings["time"];
+        uint64_t angle = 0;
 
         if (settings.contains("angle"))
             angle = (uint64_t)settings["angle"];
@@ -1675,7 +1682,7 @@ BDOverlay* BDRingBuffer::GetOverlay(void)
 
 void BDRingBuffer::SubmitOverlay(const bd_overlay_s * const overlay)
 {
-    if (!overlay || overlay->plane < 0 || overlay->plane > m_overlayPlanes.size())
+    if (!overlay || overlay->plane > m_overlayPlanes.size())
         return;
 
     LOG(VB_PLAYBACK, LOG_DEBUG, QString("--------------------"));
@@ -1749,7 +1756,8 @@ void BDRingBuffer::SubmitOverlay(const bd_overlay_s * const overlay)
             if (osd)
             {
                 BDOverlay* newOverlay = new BDOverlay(*osd);
-                newOverlay->image.convertToFormat(QImage::Format_ARGB32);
+                newOverlay->image =
+                    osd->image.convertToFormat(QImage::Format_ARGB32);
                 newOverlay->pts = overlay->pts;
 
                 QMutexLocker lock(&m_overlayLock);
@@ -1764,7 +1772,7 @@ void BDRingBuffer::SubmitOverlay(const bd_overlay_s * const overlay)
 
 void BDRingBuffer::SubmitARGBOverlay(const bd_argb_overlay_s * const overlay)
 {
-    if (!overlay || overlay->plane < 0 || overlay->plane > m_overlayPlanes.size())
+    if (!overlay || overlay->plane > m_overlayPlanes.size())
         return;
 
     LOG(VB_PLAYBACK, LOG_DEBUG, QString("--------------------"));

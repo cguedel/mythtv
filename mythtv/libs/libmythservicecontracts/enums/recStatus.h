@@ -49,6 +49,7 @@ class SERVICE_PUBLIC RecStatus : public QObject
 
     static QString toUIState(Type);
     static QString toString(Type, uint id);
+    static QString toString(Type, const QString &name);
     static QString toString(Type, RecordingType type = kNotRecording);
     static QString toDescription(Type, RecordingType,
                                  const QDateTime &recstartts);
@@ -56,16 +57,14 @@ class SERVICE_PUBLIC RecStatus : public QObject
 
         static inline void InitializeCustomTypes();
 
-        explicit RecStatus(QObject *parent = 0) : QObject(parent) {}
-        explicit RecStatus(const RecStatus & /* src */)					 {}
-};
+        Q_INVOKABLE explicit RecStatus(QObject *parent = 0) : QObject(parent) {}
 
-Q_DECLARE_METATYPE( RecStatus )
-Q_DECLARE_METATYPE( RecStatus*)
+    private:
+        Q_DISABLE_COPY(RecStatus)
+};
 
 inline void RecStatus::InitializeCustomTypes()
 {
-    qRegisterMetaType< RecStatus  >();
     qRegisterMetaType< RecStatus* >();
 }
 

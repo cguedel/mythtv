@@ -1166,7 +1166,7 @@ static QString extract_cc608(QString &text, int &color,
     if (nextControl < 0)
     {
         result = text;
-        text = QString::null;
+        text.clear();
     }
     else
     {
@@ -1398,6 +1398,8 @@ SubtitleScreen::~SubtitleScreen(void)
 
 void SubtitleScreen::EnableSubtitles(int type, bool forced_only)
 {
+    m_subtitleType = type;
+
     if (forced_only)
     {
         SetElementDeleted();
@@ -1406,7 +1408,6 @@ void SubtitleScreen::EnableSubtitles(int type, bool forced_only)
         return;
     }
 
-    m_subtitleType = type;
     if (m_subreader)
     {
         m_subreader->EnableAVSubtitles(kDisplayAVSubtitle == m_subtitleType);
@@ -2150,11 +2151,7 @@ void SubtitleScreen::DisplayTextSubtitles(void)
         //    playPos = (uint64_t)
         //        ((currentFrame->frameNumber / video_frame_rate) * 1000);
         //else
-        //playPos = m_player->GetDecoder()->NormalizeVideoTimecode(currentFrame->timecode);
-        //
-        // Change of plans.  Just ask the player how many milliseconds
-        // have been played so far.
-        playPos = m_player->GetSecondsPlayed(false, 1);
+        playPos = m_player->GetDecoder()->NormalizeVideoTimecode(currentFrame->timecode);
     }
     playPos -= playPosAdj;
     if (playPos != 0)
@@ -2258,12 +2255,10 @@ void SubtitleScreen::DisplayCC708Subtitles(void)
         return;
 
     CC708Service *cc708service = m_708reader->GetCurrentService();
-    float video_aspect = 1.77777f;
-    bool changed = false;
-    video_aspect = m_player->GetVideoAspect();
+    float video_aspect = m_player->GetVideoAspect();
     QRect oldsafe = m_safeArea;
     m_safeArea = m_player->GetVideoOutput()->GetSafeRect();
-    changed = (oldsafe != m_safeArea || m_textFontZoom != m_textFontZoomPrev);
+    bool changed = (oldsafe != m_safeArea || m_textFontZoom != m_textFontZoomPrev);
     if (changed)
     {
         for (int i = 0; i < k708MaxWindows; i++)
@@ -2338,7 +2333,7 @@ void SubtitleScreen::AddScaledImage(QImage &img, QRect &pos)
 }
 
 #ifdef USING_LIBASS
-static void myth_libass_log(int level, const char *fmt, va_list vl, void *ctx)
+static void myth_libass_log(int level, const char *fmt, va_list vl, void */*ctx*/)
 {
     static QString full_line("libass:");
     static const int msg_len = 255;

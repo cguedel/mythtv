@@ -219,7 +219,7 @@ void PlaylistEditorView::customEvent(QEvent *event)
     }
     else if (event->type() == MythEvent::MythEventMessage)
     {
-        MythEvent *me = dynamic_cast<MythEvent*>(event);
+        MythEvent *me = static_cast<MythEvent*>(event);
 
         if (!me)
             return;
@@ -381,9 +381,8 @@ bool PlaylistEditorView::keyPressEvent(QKeyEvent *event)
     if (!m_moveTrackMode && GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {

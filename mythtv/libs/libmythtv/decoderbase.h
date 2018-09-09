@@ -147,7 +147,6 @@ class DecoderBase
     // Must be done while player is paused.
     void SetProgramInfo(const ProgramInfo &pginfo);
 
-    virtual void SetLowBuffers(bool low) { lowbuffers = low; }
     /// Disables AC3/DTS pass through
     virtual void SetDisablePassThrough(bool disable) { (void)disable; }
     // Reconfigure audio as necessary, following configuration change
@@ -256,7 +255,7 @@ class DecoderBase
 
     virtual int  GetTeletextDecoderType(void) const { return -1; }
 
-    virtual QString GetXDS(const QString&) const { return QString::null; }
+    virtual QString GetXDS(const QString&) const { return QString(); }
     virtual QByteArray GetSubHeader(uint /*trackNo*/) const { return QByteArray(); }
     virtual void GetAttachmentData(uint /*trackNo*/, QByteArray &/*filename*/,
                                    QByteArray &/*data*/) {}
@@ -270,6 +269,7 @@ class DecoderBase
     void SaveTotalFrames(void);
     bool GetVideoInverted(void) const { return video_inverted; }
     void TrackTotalDuration(bool track) { trackTotalDuration = track; }
+    int GetfpsMultiplier(void) { return fpsMultiplier; }
 
   protected:
     virtual int  AutoSelectTrack(uint type);
@@ -302,6 +302,8 @@ class DecoderBase
     int current_height;
     float current_aspect;
     double fps;
+    int fpsMultiplier;
+    int fpsSkip;
     uint bitrate;
 
     long long framesPlayed;
@@ -338,8 +340,6 @@ class DecoderBase
     bool watchingrecording;
 
     bool hasKeyFrameAdjustTable;
-
-    bool lowbuffers;
 
     bool getrawframes;
     bool getrawvideo;

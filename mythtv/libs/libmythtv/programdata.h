@@ -73,7 +73,7 @@ class MTV_PUBLIC EventRating
 class MTV_PUBLIC DBEvent
 {
   public:
-    DBEvent(uint _listingsource) :
+    explicit DBEvent(uint _listingsource) :
         title(),
         subtitle(),
         description(),
@@ -242,16 +242,7 @@ class MTV_PUBLIC ProgInfo : public DBEvent
 {
   public:
     ProgInfo() :
-        DBEvent(kListingSourceXMLTV),
-        // extra XMLTV stuff
-        channel(QString::null),
-        startts(QString::null),
-        endts(QString::null),
-        title_pronounce(QString::null),
-        showtype(QString::null),
-        colorcode(QString::null),
-        clumpidx(QString::null),
-        clumpmax(QString::null) { }
+        DBEvent(kListingSourceXMLTV) { }
 
     ProgInfo(const ProgInfo &other);
 

@@ -393,16 +393,13 @@ CommDetector2::CommDetector2(
      */
     if ((commDetectMethod & COMM_DETECT_2_LOGO))
     {
-        CannyEdgeDetector       *cannyEdgeDetector = NULL;
-
         if (!pgmConverter)
             pgmConverter = new PGMConverter();
 
         if (!borderDetector)
             borderDetector = new BorderDetector();
 
-        if (!cannyEdgeDetector)
-            cannyEdgeDetector = new CannyEdgeDetector();
+        CannyEdgeDetector *cannyEdgeDetector = new CannyEdgeDetector();
 
         if (!logoFinder)
         {
@@ -862,7 +859,7 @@ static void PrintReportMap(ostream &out,
 }
 
 void CommDetector2::PrintFullMap(
-    ostream &out, const frm_dir_map_t *comm_breaks, bool verbose) const
+    ostream &out, const frm_dir_map_t */*comm_breaks*/, bool /*verbose*/) const
 {
     FrameAnalyzer::FrameMap logoMap, blankMap, blankBreakMap, sceneMap;
     if (logoFinder)

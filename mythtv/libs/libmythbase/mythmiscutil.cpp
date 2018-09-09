@@ -112,7 +112,7 @@ bool getUptime(time_t &uptime)
 bool getMemStats(int &totalMB, int &freeMB, int &totalVM, int &freeVM)
 {
 #ifdef __linux__
-    size_t MB = (1024*1024);
+    const size_t MB = (1024*1024);
     struct sysinfo sinfo;
     if (sysinfo(&sinfo) == -1)
     {
@@ -120,11 +120,11 @@ bool getMemStats(int &totalMB, int &freeMB, int &totalVM, int &freeVM)
             "getMemStats(): Error, sysinfo() call failed.");
         return false;
     }
-    else
-        totalMB = (int)((sinfo.totalram  * sinfo.mem_unit)/MB),
-        freeMB  = (int)((sinfo.freeram   * sinfo.mem_unit)/MB),
-        totalVM = (int)((sinfo.totalswap * sinfo.mem_unit)/MB),
-        freeVM  = (int)((sinfo.freeswap  * sinfo.mem_unit)/MB);
+
+    totalMB = (int)((sinfo.totalram  * sinfo.mem_unit)/MB);
+    freeMB  = (int)((sinfo.freeram   * sinfo.mem_unit)/MB);
+    totalVM = (int)((sinfo.totalswap * sinfo.mem_unit)/MB);
+    freeVM  = (int)((sinfo.freeswap  * sinfo.mem_unit)/MB);
 
 #elif CONFIG_DARWIN
     mach_port_t             mp;
@@ -162,6 +162,10 @@ bool getMemStats(int &totalMB, int &freeMB, int &totalVM, int &freeVM)
     freeVM = (int)(free >> 10);
 
 #else
+    Q_UNUSED(totalMB);
+    Q_UNUSED(freeMB);
+    Q_UNUSED(totalVM);
+    Q_UNUSED(freeVM);
     LOG(VB_GENERAL, LOG_NOTICE, "getMemStats(): Unknown platform. "
         "How do I get the memory stats?");
     return false;
@@ -316,7 +320,7 @@ long long copy(QFile &dst, QFile &src, uint block_size)
     long long total_bytes = 0LL;
     while (ok)
     {
-        long long rlen, wlen, off = 0;
+        long long rlen, off = 0;
         rlen = src.read(buf, buflen);
         if (rlen<0)
         {
@@ -331,7 +335,7 @@ long long copy(QFile &dst, QFile &src, uint block_size)
 
         while ((rlen-off>0) && ok)
         {
-            wlen = dst.write(buf + off, rlen - off);
+            long long wlen = dst.write(buf + off, rlen - off);
             if (wlen>=0)
                 off+= wlen;
             if (wlen<0)
@@ -491,7 +495,7 @@ QString getSymlinkTarget(const QString &start_file,
             .arg(maxLinks));
 #endif
 
-    QString   link     = QString::null;
+    QString   link;
     QString   cur_file = start_file; cur_file.detach();
     QFileInfo fi(cur_file);
 
@@ -529,10 +533,10 @@ QString getSymlinkTarget(const QString &start_file,
 
     LOG(VB_GENERAL, LOG_DEBUG,
             QString("getSymlinkTarget() -> '%1'")
-            .arg((!fi.isSymLink()) ? cur_file : QString::null));
+            .arg((!fi.isSymLink()) ? cur_file : QString()));
 #endif
 
-    return (!fi.isSymLink()) ? cur_file : QString::null;
+    return (!fi.isSymLink()) ? cur_file : QString();
 }
 
 bool IsMACAddress(QString MAC)
@@ -547,7 +551,6 @@ bool IsMACAddress(QString MAC)
 
     int y;
     bool ok;
-    int value;
     for (y = 0; y < 6; y++)
     {
         if (tokens[y].isEmpty())
@@ -558,7 +561,7 @@ bool IsMACAddress(QString MAC)
             return false;
         }
 
-        value = tokens[y].toInt(&ok, 16);
+        int value = tokens[y].toInt(&ok, 16);
         if (!ok)
         {
             LOG(VB_NETWORK, LOG_ERR,
@@ -824,7 +827,7 @@ bool MythRemoveDirectory(QDir &aDir)
  * \brief Get network proxy settings from OS, and use for [Q]Http[Comms]
  *
  * The HTTP_PROXY environment var. is parsed for values like; "proxy-host",
- * "proxy-host:8080", "http://host:8080" and "http"//user:password@host:1080",
+ * "proxy-host:8080", "http://host:8080" and "http"//user:password\@host:1080",
  * and that is used for any Qt-based Http fetches.
  * We also test connectivity here with ping and telnet, and warn if it fails.
  *
@@ -1090,7 +1093,7 @@ int naturalCompare(const QString &_a, const QString &_b, Qt::CaseSensitivity cas
 
 // QStringRef::localeAwareCompare is buggy on Qt < 5.3, taking significant time
 // to complete. So we use compare instead with those versions of Qt.
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)) && (QT_VERSION < QT_VERSION_CHECK(5, 3, 0))
+#if (QT_VERSION < QT_VERSION_CHECK(5, 3, 0))
         const int cmp = QStringRef::compare(subA, subB);
 #else
         const int cmp = QStringRef::localeAwareCompare(subA, subB);

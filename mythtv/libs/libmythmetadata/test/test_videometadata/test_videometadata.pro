@@ -1,13 +1,6 @@
 include ( ../../../../settings.pro )
 
-QT += xml sql network
-
-contains(QT_VERSION, ^4\\.[0-9]\\..*) {
-CONFIG += qtestlib
-}
-contains(QT_VERSION, ^5\\.[0-9]\\..*) {
-QT += testlib
-}
+QT += xml sql network testlib
 
 TEMPLATE = app
 TARGET = test_videometadata
@@ -33,7 +26,6 @@ LIBS += -L../../../../external/FFmpeg/libavformat -lmythavformat
 LIBS += -L../../../../external/FFmpeg/libavfilter -lmythavfilter
 LIBS += -L../../../../external/FFmpeg/libpostproc -lmythpostproc
 using_mheg:LIBS += -L../../../libmythfreemheg -lmythfreemheg-$$LIBVERSION
-using_hdhomerun:LIBS += -L../../../../external/libhdhomerun -lmythhdhomerun-$$LIBVERSION
 
 contains(QMAKE_CXX, "g++") {
   QMAKE_CXXFLAGS += -O0 -fprofile-arcs -ftest-coverage
@@ -54,7 +46,6 @@ QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libavfilter
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libavcodec
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libpostproc
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libswresample
-QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/libhdhomerun
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../libmythbase
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../libmyth
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../libmythui
@@ -69,6 +60,9 @@ HEADERS += test_videometadata.h
 SOURCES += test_videometadata.cpp
 
 QMAKE_CLEAN += $(TARGET) $(TARGETA) $(TARGETD) $(TARGET0) $(TARGET1) $(TARGET2)
-QMAKE_CLEAN += ; rm -f *.gcov *.gcda *.gcno
+QMAKE_CLEAN += ; ( cd $(OBJECTS_DIR) && rm -f *.gcov *.gcda *.gcno )
 
 LIBS += $$EXTRA_LIBS $$LATE_LIBS
+
+# Fix runtime linking on Ubuntu 17.10.
+linux:QMAKE_LFLAGS += -Wl,--disable-new-dtags

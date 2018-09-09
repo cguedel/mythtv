@@ -100,7 +100,7 @@ QString DiSEqCDevDevice::TableToString(uint type, const TypeTable *table)
             return tmp;
         }
     }
-    return QString::null;
+    return QString();
 }
 
 uint DiSEqCDevDevice::TableFromString(const QString   &type,
@@ -243,7 +243,6 @@ DiSEqCDevTrees DiSEqCDev::m_trees;
 /** \fn DiSEqCDev::FindTree(uint)
  *  \brief Retrieve device tree.
  *  \param cardid Capture card id.
- *  \param fd_frontend DVB frontend device file descriptor.
  */
 DiSEqCDevTree *DiSEqCDev::FindTree(uint cardid)
 {
@@ -272,7 +271,6 @@ DiSEqCDevTrees::~DiSEqCDevTrees()
 /** \fn DiSEqCDevTrees::FindTree(uint)
  *  \brief Retrieve device tree.
  *  \param cardid Capture card id.
- *  \param fd_frontend DVB frontend device file descriptor.
  */
 DiSEqCDevTree *DiSEqCDevTrees::FindTree(uint cardid)
 {
@@ -323,7 +321,7 @@ DiSEqCDevTree::~DiSEqCDevTree()
     delete m_root;
 }
 
-/** \fn DiSEqCDevTree::Load(const QString&, const QString&)
+/** \fn DiSEqCDevTree::Load(const QString&)
  *  \brief Loads the device tree from the database.
  *  \param device recording input uses.
  *  \return True if successful.
@@ -428,7 +426,8 @@ bool DiSEqCDevTree::Exists(int cardid)
 
 /** \fn DiSEqCDevTree::Store(uint, QString)
  *  \brief Stores the device tree to the database.
- *  \param device.
+ *  \param cardid Capture card id.
+ *  \param device Device id.
  *  \return True if successful.
  */
 bool DiSEqCDevTree::Store(uint cardid, const QString &device)
@@ -752,9 +751,10 @@ bool DiSEqCDevTree::SendCommand(uint adr, uint cmd, uint repeats,
 #endif // USING_DVB
 }
 
-/** \fn DiSEqCDevTree::ResetDiseqc(bool)
+/**
  *  \brief Resets the DiSEqC bus.
  *  \param hard_reset If true, the bus will be power cycled.
+ *  \param is_SCR Is this an SCR bus?
  *  \return True if successful.
  */
 bool DiSEqCDevTree::ResetDiseqc(bool hard_reset, bool is_SCR)
@@ -801,6 +801,11 @@ bool DiSEqCDevTree::ResetDiseqc(bool hard_reset, bool is_SCR)
     return true;
 }
 
+/**
+ *  \brief Retrieve device tree.
+ *  \param fd_frontend DVB frontend device file descriptor.
+ *  \param is_SCR Is this an SCR bus?
+ */
 void DiSEqCDevTree::Open(int fd_frontend, bool is_SCR)
 {
     m_fd_frontend = fd_frontend;
@@ -874,7 +879,7 @@ const DiSEqCDevDevice::TypeTable DiSEqCDevDevice::dvbdev_lookup[5] =
     { "rotor",       kTypeRotor  },
     { "scr",         kTypeSCR    },
     { "lnb",         kTypeLNB    },
-    { QString::null, kTypeLNB    },
+    { QString(),     kTypeLNB    },
 };
 
 
@@ -884,7 +889,7 @@ const DiSEqCDevDevice::TypeTable DiSEqCDevDevice::dvbdev_lookup[5] =
  */
 DiSEqCDevDevice::DiSEqCDevDevice(DiSEqCDevTree &tree, uint devid)
     : m_devid(devid),           m_dev_type(kTypeLNB),
-      m_desc(QString::null),    m_tree(tree),
+                                m_tree(tree),
       m_parent(NULL),           m_ordinal(0),
       m_repeat(1)
 {
@@ -996,7 +1001,7 @@ DiSEqCDevDevice *DiSEqCDevDevice::CreateByType(DiSEqCDevTree &tree,
     return node;
 }
 
-/** \fn DiSEqCDevDevice::Execute(const DiSEqCDevSettings&,const DTVMultiplex&)
+/** \fn DiSEqCDevDevice::Execute(const DiSEqCDevSettings& settings,const DTVMultiplex& tuning)
  *  \brief Applies DiSEqC settings to this node and any children.
  *  \param settings Configuration chain to apply.
  *  \param tuning Tuning parameters.
@@ -1014,10 +1019,11 @@ DiSEqCDevDevice *DiSEqCDevDevice::CreateByType(DiSEqCDevTree &tree,
  *  \brief Determines if this device or any child will be sending a command
  *         for the given configuration chain.
  *  \param settings Configuration chain in effect.
+ *  \param tuning Tuning parameters.
  *  \return true if a command would be sent if Execute() were called.
  */
 
-/** \fn DiSEqCDevDevice::GetSelectedChild(const DiSEqCDevSettings&) const
+/** \fn DiSEqCDevDevice::GetSelectedChild(const DiSEqCDevSettings& settings) const
  *  \brief Retrieves the selected child for this configuration, if any.
  *  \param settings Configuration chain in effect.
  *  \return Child node object, or NULL if none.
@@ -1028,20 +1034,20 @@ DiSEqCDevDevice *DiSEqCDevDevice::CreateByType(DiSEqCDevTree &tree,
  *  \return Number of children
  */
 
-/** \fn DiSEqCDevDevice::GetChild(uint)
+/** \fn DiSEqCDevDevice::GetChild(uint ordinal)
  *  \brief Retrieves the nth child of this node.
  *  \param ordinal Child number (starting at 0).
  *  \return Pointer to device object, or NULL if no child.
  */
 
-/** \fn DiSEqCDevDevice::SetChild(uint,DiSEqCDevDevice*)
+/** \fn DiSEqCDevDevice::SetChild(uint ordinal,DiSEqCDevDevice* device)
  *  \brief Changes the nth child of this node.
  *  \param ordinal Child number (starting at 0).
  *  \param device New child device. (may be NULL)
  *  \return true if object was added to tree.
  */
 
-/** \fn DiSEqCDevDevice::GetVoltage(const DiSEqCDevSettings&,const DTVMultiplex&) const
+/** \fn DiSEqCDevDevice::GetVoltage(const DiSEqCDevSettings& settings,const DTVMultiplex& tuning) const
  *  \brief Retrives the desired voltage for this config.
  *  \param settings Configuration chain in effect.
  *  \param tuning Tuning parameters.
@@ -1080,7 +1086,7 @@ const DiSEqCDevDevice::TypeTable DiSEqCDevSwitch::SwitchTypeTable[9] =
     { "diseqc_uncom", kTypeDiSEqCUncommitted },
     { "voltage",      kTypeVoltage           },
     { "mini_diseqc",  kTypeMiniDiSEqC        },
-    { QString::null,  kTypeTone              },
+    { QString(),      kTypeTone              },
 };
 
 DiSEqCDevSwitch::DiSEqCDevSwitch(DiSEqCDevTree &tree, uint devid)
@@ -2151,7 +2157,7 @@ const DiSEqCDevDevice::TypeTable DiSEqCDevSCR::SCRPositionTable[3] =
 {
     { "A",            kTypeScrPosA },
     { "B",            kTypeScrPosB },
-    { QString::null,  kTypeScrPosA },
+    { QString(),      kTypeScrPosA },
 };
 
 DiSEqCDevSCR::DiSEqCDevSCR(DiSEqCDevTree &tree, uint devid)
@@ -2447,7 +2453,7 @@ const DiSEqCDevDevice::TypeTable DiSEqCDevLNB::LNBTypeTable[5] =
     { "voltage",      kTypeVoltageControl        },
     { "voltage_tone", kTypeVoltageAndToneControl },
     { "bandstacked",  kTypeBandstacked           },
-    { QString::null,  kTypeVoltageAndToneControl },
+    { QString(),      kTypeVoltageAndToneControl },
 };
 
 DiSEqCDevLNB::DiSEqCDevLNB(DiSEqCDevTree &tree, uint devid)
@@ -2608,16 +2614,14 @@ bool DiSEqCDevLNB::IsHorizontal(const DTVMultiplex &tuning) const
     return (pol == "h" || pol == "l") ^ IsPolarityInverted();
 }
 
-/** \fn DiSEqCDevLNB::GetIntermediateFrequency(const DiSEqCDevSettings&,
-                                               const DTVMultiplex&) const
- *  \brief Calculate proper intermediate frequency for the given settings
+/** \brief Calculate proper intermediate frequency for the given settings
  *         and tuning parameters.
  *  \param settings Configuration chain in effect.
  *  \param tuning Tuning parameters.
  *  \return Frequency for use with FE_SET_FRONTEND.
  */
 uint32_t DiSEqCDevLNB::GetIntermediateFrequency(
-    const DiSEqCDevSettings&, const DTVMultiplex &tuning) const
+    const DiSEqCDevSettings& /*settings*/, const DTVMultiplex &tuning) const
 {
     (void) tuning;
 

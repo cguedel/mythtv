@@ -494,6 +494,7 @@ void MythUIText::DrawSelf(MythPainter *p, int xoffset, int yoffset,
         canvas.setHeight(canvas.height() + shadow.y());
     }
 
+    p->SetClipRect(clipRect);
     p->DrawTextLayout(canvas, m_Layouts, formats,
                       *GetFontProperties(), alpha, drawrect);
 }
@@ -759,17 +760,9 @@ void MythUIText::FillCutMessage(void)
 
         if (isNumber && m_TemplateText.contains("%n"))
         {
-#if QT_VERSION < 0x050000
-            m_CutMessage = qApp->translate("ThemeUI",
-                                           m_TemplateText.toUtf8(), NULL,
-                                           QCoreApplication::UnicodeUTF8,
-                                           qAbs(value));
-#else
             m_CutMessage = qApp->translate("ThemeUI",
                                            m_TemplateText.toUtf8(), NULL,
                                            qAbs(value));
-#endif
-
         }
         else if (m_TemplateText.contains("%1"))
         {

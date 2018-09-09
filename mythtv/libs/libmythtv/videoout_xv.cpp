@@ -58,6 +58,7 @@ extern "C" {
 #endif // silences warning when these are already defined
 
 #include "libswscale/swscale.h"
+#include "libavutil/imgutils.h"
 }
 
 #if ! HAVE_ROUND
@@ -321,7 +322,7 @@ class XvAttributes
 {
   public:
     XvAttributes() :
-        description(QString::null), xv_flags(0), feature_flags(0) {}
+        xv_flags(0), feature_flags(0) {}
     XvAttributes(const QString &a, uint b, uint c) :
         description(a), xv_flags(b), feature_flags(c)
         { description.detach(); }
@@ -359,13 +360,13 @@ void VideoOutputXv::UngrabXvPort(MythXDisplay *disp, int port)
  * \return port number if it succeeds, else -1.
  */
 int VideoOutputXv::GrabSuitableXvPort(MythXDisplay* disp, Window root,
-                                      MythCodecID mcodecid,
+                                      MythCodecID /*mcodecid*/,
                                       uint width, uint height,
                                       bool &xvsetdefaults,
                                       QString *adaptor_name)
 {
     if (adaptor_name)
-        *adaptor_name = QString::null;
+        *adaptor_name = QString();
 
     // create list of requirements to check in order..
     vector<XvAttributes> req;
@@ -408,7 +409,7 @@ int VideoOutputXv::GrabSuitableXvPort(MythXDisplay* disp, Window root,
         return -1;
     }
 
-    QString lastAdaptorName = QString::null;
+    QString lastAdaptorName;
     int port = -1;
 
     // find an Xv port
@@ -519,7 +520,7 @@ int VideoOutputXv::GrabSuitableXvPort(MythXDisplay* disp, Window root,
  *
  * \sideeffect sets av_pause_frame.
  */
-void VideoOutputXv::CreatePauseFrame(VOSType subtype)
+void VideoOutputXv::CreatePauseFrame(VOSType /*subtype*/)
 {
     if (av_pause_frame.buf)
     {
@@ -552,11 +553,10 @@ bool VideoOutputXv::InitVideoBuffers(bool use_xv, bool use_shm)
     bool done = false;
 
     // Create ffmpeg VideoFrames
-    if (!done)
-        vbuffers.Init(31, true, 1, 12, 4, 2);
+    vbuffers.Init(31, true, 1, 12, 4, 2);
 
     // Fall back to XVideo if there is an xv_port
-    if (!done && use_xv)
+    if (use_xv)
         done = InitXVideo();
 
     // only HW accel allowed for PIP and PBP
@@ -600,7 +600,7 @@ bool VideoOutputXv::InitXVideo()
 {
     MythXLocker lock(disp);
     disp->StartLog();
-    QString adaptor_name = QString::null;
+    QString adaptor_name;
     const QSize video_dim = window.GetVideoDim();
     xv_port = GrabSuitableXvPort(disp, disp->GetRoot(), kCodec_MPEG2,
                                  video_dim.width(), video_dim.height(),
@@ -818,7 +818,7 @@ bool VideoOutputXv::InitSetupBuffers(void)
     db_vdisp_profile->SetInput(window.GetVideoDim());
     QStringList renderers = allowed_video_renderers(
                                 video_codec_id, disp, XJ_curwin);
-    QString     renderer  = QString::null;
+    QString     renderer;
 
     QString tmp = db_vdisp_profile->GetVideoRenderer();
     LOG(VB_PLAYBACK, LOG_INFO, LOC + "InitSetupBuffers() " +
@@ -1435,7 +1435,7 @@ void VideoOutputXv::PrepareFrameMem(VideoFrame *buffer, FrameScanType /*scan*/)
 
     int out_width  = display_visible_rect.width()  & ~0x1;
     int out_height = display_visible_rect.height() & ~0x1;
-    AVPicture image_in, image_out;
+    AVFrame image_in, image_out;
 
     if ((out_width  == width) &&
         (out_height == height))
@@ -1449,8 +1449,9 @@ void VideoOutputXv::PrepareFrameMem(VideoFrame *buffer, FrameScanType /*scan*/)
         int size = buffersize(FMT_YV12, out_width, out_height);
         unsigned char *sbuf = (unsigned char*)av_malloc(size);
 
-        avpicture_fill(&image_out, (uint8_t *)sbuf, AV_PIX_FMT_YUV420P,
-                       out_width, out_height);
+        av_image_fill_arrays(image_out.data, image_out.linesize,
+            (uint8_t *)sbuf, AV_PIX_FMT_YUV420P,
+            out_width, out_height, IMAGE_ALIGN);
         AVPictureFill(&image_in, buffer);
         QMutexLocker locker(&lock);
         scontext = sws_getCachedContext(scontext, width, height,
@@ -1462,8 +1463,9 @@ void VideoOutputXv::PrepareFrameMem(VideoFrame *buffer, FrameScanType /*scan*/)
                   image_out.data, image_out.linesize);
     }
 
-    avpicture_fill(&image_in, (uint8_t *)XJ_non_xv_image->data,
-                   non_xv_av_format, out_width, out_height);
+    av_image_fill_arrays(image_in.data, image_in.linesize,
+        (uint8_t *)XJ_non_xv_image->data,
+        non_xv_av_format, out_width, out_height, IMAGE_ALIGN);
 
     m_copyFrame.Copy(&image_in, non_xv_av_format, &image_out, AV_PIX_FMT_YUV420P,
                 out_width, out_height);
@@ -1546,11 +1548,10 @@ static void calc_bob(FrameScanType scan, int imgh, int disphoff,
     xv_dest_y_incr = dst_half_line_in_src;
     // nVidia v 66.29, does proper compensation when imgh==frame_height
     // but we need to compensate when the difference is >= 5%
-    int mod = 0;
     if (frame_height>=(int)(imgh+(0.05*frame_height)) && 2==field)
     {
         //int nrml = (int) round((((double)disphoff)/frame_height) - 0.00001);
-        mod = -dst_half_line_in_src;
+        int mod = -dst_half_line_in_src;
         dest_y += mod;
         xv_dest_y_incr -= mod;
     }
@@ -1593,10 +1594,10 @@ void VideoOutputXv::ShowXVideo(FrameScanType scan)
     const QRect display_video_rect = (vsz_enabled && chroma_osd) ?
                                       vsz_desired_display_rect :
                                       window.GetDisplayVideoRect();
-    int field = 3, src_y = video_rect.top(), dest_y = display_video_rect.top(),
-        xv_src_y_incr = 0, xv_dest_y_incr = 0;
+    int field = 3, src_y = video_rect.top(), dest_y = display_video_rect.top();
     if (m_deinterlacing && (m_deintfiltername == "bobdeint"))
     {
+        int xv_src_y_incr = 0, xv_dest_y_incr = 0;
         calc_bob(scan,
                  video_rect.height(), display_video_rect.height(),
                  video_rect.top(),    display_video_rect.top(),

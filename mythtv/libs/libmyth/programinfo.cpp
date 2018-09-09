@@ -46,18 +46,7 @@ ProgramInfoUpdater *ProgramInfo::updater;
 int dummy = pginfo_init_statics();
 bool ProgramInfo::usingProgIDAuth = true;
 
-// kUnknownInputName is a placeholder for when ProgramInfo::inputname is
-// unknown, in which case ProgramInfo::ToMap() will call the expensive
-// QueryInputDisplayName() to approximate it.  The inputname value is always
-// known when the ProgramInfo is created from a query on the recorded table, and
-// unknown when created from a query on a different table like oldrecorded or
-// program, or from a non-copy/assignment constructor.
-//
-// We try to pick a short string that a user is unlikely to use as an input
-// display name.  If it does collide with a user choice, the results will still
-// be correct, but there will be extra calls to QueryInputDisplayName().
-const static QString kUnknownInputName = "~";
-const static uint kInvalidDateTime = QDateTime().toTime_t();
+const static uint kInvalidDateTime = (uint)-1;
 
 
 const QString ProgramInfo::kFromRecordedQuery =
@@ -114,6 +103,10 @@ static QString determineURLType(const QString& url)
 
                 case MythCDROM::kDVD:
                     result = "dvd:" + url;
+                    break;
+
+                case MythCDROM::kUnknown:
+                    // Quiet compiler warning.
                     break;
             }
         }
@@ -203,7 +196,6 @@ ProgramInfo::ProgramInfo(void) :
     lastmodified(startts),
     lastInUseTime(startts.addSecs(-4 * 60 * 60)),
 
-    prefinput(0),
     recpriority2(0),
     recordid(0),
     parentid(0),
@@ -225,7 +217,7 @@ ProgramInfo::ProgramInfo(void) :
     dupmethod(kDupCheckSubThenDesc),
 
     recordedid(0),
-    inputname(kUnknownInputName),
+    inputname(),
     bookmarkupdate(),
 
     // everything below this line is not serialized
@@ -288,7 +280,6 @@ ProgramInfo::ProgramInfo(const ProgramInfo &other) :
     lastmodified(other.lastmodified),
     lastInUseTime(MythDate::current().addSecs(-4 * 60 * 60)),
 
-    prefinput(other.prefinput),
     recpriority2(other.recpriority2),
     recordid(other.recordid),
     parentid(other.parentid),
@@ -473,7 +464,6 @@ ProgramInfo::ProgramInfo(
     lastmodified(_lastmodified),
     lastInUseTime(MythDate::current().addSecs(-4 * 60 * 60)),
 
-    prefinput(0),
     recpriority2(0),
     recordid(_recordid),
     parentid(0),
@@ -593,7 +583,6 @@ ProgramInfo::ProgramInfo(
     lastmodified(startts),
     lastInUseTime(MythDate::current().addSecs(-4 * 60 * 60)),
 
-    prefinput(0),
     recpriority2(0),
     recordid(_recordid),
     parentid(0),
@@ -615,7 +604,7 @@ ProgramInfo::ProgramInfo(
     dupmethod(0),
 
     recordedid(0),
-    inputname(kUnknownInputName),
+    inputname(),
     bookmarkupdate(),
 
     // everything below this line is not serialized
@@ -722,7 +711,6 @@ ProgramInfo::ProgramInfo(
     lastmodified(startts),
     lastInUseTime(startts.addSecs(-4 * 60 * 60)),
 
-    prefinput(0),
     recpriority2(0),
     recordid(_recordid),
     parentid(0),
@@ -746,7 +734,7 @@ ProgramInfo::ProgramInfo(
     dupmethod(kDupCheckSubThenDesc),
 
     recordedid(0),
-    inputname(kUnknownInputName),
+    inputname(),
     bookmarkupdate(),
 
     // everything below this line is not serialized
@@ -789,6 +777,7 @@ ProgramInfo::ProgramInfo(
         findid      = s.findid;
         recordedid  = s.recordedid;
         hostname    = s.hostname;
+        inputname   = s.inputname;
 
         // This is the exact showing (same chanid or callsign)
         // which will be recorded
@@ -835,7 +824,8 @@ ProgramInfo::ProgramInfo(
 
     const QString &_seriesid,
     const QString &_programid,
-    const QString &_inetref) :
+    const QString &_inetref,
+    const QString &_inputname) :
     title(_title),
     subtitle(_subtitle),
     description(_description),
@@ -879,7 +869,6 @@ ProgramInfo::ProgramInfo(
     lastmodified(MythDate::current()),
     lastInUseTime(lastmodified.addSecs(-4 * 60 * 60)),
 
-    prefinput(0),
     recpriority2(0),
     recordid(0),
     parentid(0),
@@ -901,7 +890,7 @@ ProgramInfo::ProgramInfo(
     dupmethod(kDupCheckSubThenDesc),
 
     recordedid(0),
-    inputname(kUnknownInputName),
+    inputname(_inputname),
     bookmarkupdate(),
 
     // everything below this line is not serialized
@@ -1124,7 +1113,6 @@ void ProgramInfo::clone(const ProgramInfo &other,
 
     recstatus = other.recstatus;
 
-    prefinput = other.prefinput;
     recpriority2 = other.recpriority2;
     recordid = other.recordid;
     parentid = other.parentid;
@@ -1235,7 +1223,6 @@ void ProgramInfo::clear(void)
 
     recstatus = RecStatus::Unknown;
 
-    prefinput = 0;
     recpriority2 = 0;
     recordid = 0;
     parentid = 0;
@@ -1245,7 +1232,7 @@ void ProgramInfo::clear(void)
     dupmethod = kDupCheckSubThenDesc;
 
     recordedid = 0;
-    inputname = kUnknownInputName;
+    inputname.clear();
     bookmarkupdate = QDateTime();
 
     sourceid = 0;
@@ -1264,6 +1251,126 @@ void ProgramInfo::clear(void)
     // Private
     inUseForWhat.clear();
     positionMapDBReplacement = NULL;
+}
+
+/*!
+ *  Compare two QStrings when they can either be initialized to
+ *  "Default" or to the empty string.
+ */
+bool qstringEqualOrDefault(const QString a, const QString b);
+bool qstringEqualOrDefault(const QString a, const QString b)
+{
+    if (a == b)
+        return true;
+    if (a.isEmpty() and (b == "Default"))
+        return true;
+    if ((a == "Default") and b.isEmpty())
+        return true;
+    return false;
+}
+
+/*!
+ *  Compare two ProgramInfo instances to see if they are equal.  Equal
+ *  is defined as all parameters that are serialized and passed across
+ *  the myth protocol are the same.
+ *
+ *  \param rhs The ProgramInfo instance to compare to the current
+ *  instance.
+ *
+ *  \return True if all the serialized fields match, False otherwise.
+ */
+bool ProgramInfo::operator==(const ProgramInfo& rhs)
+{
+    if ((title != rhs.title) ||
+        (subtitle != rhs.subtitle) ||
+        (description != rhs.description) ||
+        (season != rhs.season) ||
+        (episode != rhs.episode) ||
+        (totalepisodes != rhs.totalepisodes) ||
+        (syndicatedepisode != rhs.syndicatedepisode) ||
+        (category != rhs.category)
+#if 0
+        || (director != rhs.director)
+#endif
+        )
+        return false;
+
+    if (recpriority != rhs.recpriority)
+        return false;
+
+    if ((chanid != rhs.chanid) ||
+        (chanstr != rhs.chanstr) ||
+        (chansign != rhs.chansign) ||
+        (channame != rhs.channame) ||
+        (chanplaybackfilters != rhs.chanplaybackfilters))
+        return false;
+
+    if (!qstringEqualOrDefault(recgroup, rhs.recgroup) ||
+        !qstringEqualOrDefault(playgroup, rhs.playgroup))
+        return false;
+
+    if (pathname != rhs.pathname)
+        return false;
+
+    if ((hostname != rhs.hostname) ||
+        !qstringEqualOrDefault(storagegroup, rhs.storagegroup))
+        return false;
+
+    if ((seriesid != rhs.seriesid) ||
+        (programid != rhs.programid) ||
+        (inetref != rhs.inetref) ||
+        (catType != rhs.catType))
+        return false;
+
+    if (filesize != rhs.filesize)
+        return false;
+
+    if ((startts != rhs.startts) ||
+        (endts != rhs.endts) ||
+        (recstartts != rhs.recstartts) ||
+        (recendts != rhs.recendts))
+        return false;
+
+    if ((stars != rhs.stars) ||
+        (originalAirDate != rhs.originalAirDate) ||
+        (lastmodified != rhs.lastmodified)
+#if 0
+        || (lastInUseTime != rhs.lastInUseTime)
+#endif
+        )
+        return false;
+
+    if (recpriority2 != rhs.recpriority2)
+        return false;
+
+    if ((recordid != rhs.recordid) ||
+        (parentid != rhs.parentid))
+        return false;
+
+    if ((sourceid != rhs.sourceid) ||
+        (inputid != rhs.inputid) ||
+        (findid != rhs.findid))
+        return false;
+
+    if ((programflags != rhs.programflags) ||
+        (properties != rhs.properties) ||
+        (year != rhs.year) ||
+        (partnumber != rhs.partnumber) ||
+        (parttotal != rhs.parttotal))
+        return false;
+
+    if ((recstatus != rhs.recstatus) ||
+        (rectype != rhs.rectype) ||
+        (dupin != rhs.dupin) ||
+        (dupmethod != rhs.dupmethod))
+        return false;
+
+    if ((recordedid != rhs.recordedid) ||
+        (inputname != rhs.inputname) ||
+        (bookmarkupdate != rhs.bookmarkupdate))
+        return false;
+
+    return true;
 }
 
 /** \fn ProgramInfo::~ProgramInfo()
@@ -1363,7 +1470,17 @@ bool ProgramInfo::QueryRecordedIdFromPathname(const QString &pathname,
 
 #define INT_TO_LIST(x)       do { list << QString::number(x); } while (0)
 
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
 #define DATETIME_TO_LIST(x)  INT_TO_LIST((x).toTime_t())
+#else
+#define DATETIME_TO_LIST(x)  do {                                         \
+                                 if ((x).isValid()) {                     \
+                                     INT_TO_LIST((x).toSecsSinceEpoch()); \
+                                 } else {                                 \
+                                     INT_TO_LIST(kInvalidDateTime);       \
+                                 }                                        \
+                             } while (0)
+#endif
 
 #define LONGLONG_TO_LIST(x)  do { list << QString::number(x); } while (0)
 
@@ -1453,11 +1570,22 @@ void ProgramInfo::ToStringList(QStringList &list) const
 #define INT_FROM_LIST(x)     do { NEXT_STR(); (x) = ts.toLongLong(); } while (0)
 #define ENUM_FROM_LIST(x, y) do { NEXT_STR(); (x) = ((y)ts.toInt()); } while (0)
 
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
 #define DATETIME_FROM_LIST(x) \
     do { NEXT_STR();                                                    \
          x = (ts.toUInt() == kInvalidDateTime ?                         \
               QDateTime() : MythDate::fromTime_t(ts.toUInt()));         \
     } while (0)
+#else
+#define DATETIME_FROM_LIST(x) \
+    do { NEXT_STR();                                                    \
+         if (ts.isEmpty() or (ts.toUInt() == kInvalidDateTime)) {       \
+              x = QDateTime();                                          \
+         } else {                                                       \
+              x = MythDate::fromSecsSinceEpoch(ts.toLongLong());        \
+         }                                                              \
+    } while (0)
+#endif
 #define DATE_FROM_LIST(x) \
     do { NEXT_STR(); (x) = ((ts.isEmpty()) || (ts == "0000-00-00")) ? \
                          QDate() : QDate::fromString(ts, Qt::ISODate); \
@@ -1470,7 +1598,7 @@ void ProgramInfo::ToStringList(QStringList &list) const
 /** \fn ProgramInfo::FromStringList(QStringList::const_iterator&,
                                     QStringList::const_iterator)
  *  \brief Uses a QStringList to initialize this ProgramInfo instance.
- *  \param beg    Iterator pointing to first item in list to treat as
+ *  \param it     Iterator pointing to first item in list to treat as
  *                beginning of serialized ProgramInfo.
  *  \param end    Iterator that will stop parsing of the ProgramInfo
  *  \return true if it succeeds, false if it fails.
@@ -1658,8 +1786,13 @@ void ProgramInfo::ToMap(InfoMap &progMap,
         progMap["recstartdate"] = MythDate::toString(recstartts, kDateShort);
         progMap["recendtime"] = MythDate::toString(recendts, kTime);
         progMap["recenddate"] = MythDate::toString(recendts, kDateShort);
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         progMap["startts"] = QString::number(startts.toTime_t());
         progMap["endts"]   = QString::number(endts.toTime_t());
+#else
+        progMap["startts"] = QString::number(startts.toSecsSinceEpoch());
+        progMap["endts"]   = QString::number(endts.toSecsSinceEpoch());
+#endif
         if (timeNow.toLocalTime().date().year() !=
             startts.toLocalTime().date().year())
             progMap["startyear"] = startts.toLocalTime().toString("yyyy");
@@ -1755,9 +1888,9 @@ void ProgramInfo::ToMap(InfoMap &progMap,
     progMap["rectypestatus"] = tmp_rec;
 
     progMap["card"] = RecStatus::toString(GetRecordingStatus(), inputid);
-    progMap["input"] = RecStatus::toString(GetRecordingStatus(), inputid);
-    progMap["inputname"] = (inputname == kUnknownInputName ?
-                            QueryInputDisplayName() : inputname);
+    progMap["input"] = RecStatus::toString(GetRecordingStatus(),
+                                           GetShortInputName());
+    progMap["inputname"] = inputname;
     // Don't add bookmarkupdate to progMap, for now.
 
     progMap["recpriority"] = recpriority;
@@ -2012,7 +2145,6 @@ bool ProgramInfo::LoadProgramFromRecorded(
         catType = kCategoryNone;
         lastInUseTime = MythDate::current().addSecs(-4 * 60 * 60);
         rectype = kNotRecording;
-        prefinput = 0;
         recpriority2 = 0;
         parentid = 0;
         sourceid = 0;
@@ -2099,7 +2231,6 @@ bool ProgramInfo::LoadProgramFromRecorded(
 
     recstatus    = RecStatus::Recorded;
 
-    /**///prefinput;
     /**///recpriority2;
 
     recordid     = query.value(29).toUInt();
@@ -2463,9 +2594,10 @@ void ProgramInfo::SetAvailableStatus(
     if (status != availableStatus)
     {
         LOG(VB_GUI, LOG_INFO,
-                 toString(kTitleSubtitle) + QString(": %1 -> %2")
-                     .arg(::toString((AvailableStatusType)availableStatus))
-                     .arg(::toString(status)));
+            toString(kTitleSubtitle) + QString(": %1 -> %2 in %3")
+            .arg(::toString((AvailableStatusType)availableStatus))
+            .arg(::toString(status))
+            .arg(where));
     }
     availableStatus = status;
 }
@@ -3239,7 +3371,7 @@ TranscodingStatus ProgramInfo::QueryTranscodeStatus(void) const
 /** \brief Set "transcoded" field in "recorded" table to "trans".
  *  \note Also sets the FL_TRANSCODED flag if the status is
  *        TRASCODING_COMPLETE and clears it otherwise.
- *  \param transFlag value to set transcoded field to.
+ *  \param trans value to set transcoded field to.
  */
 void ProgramInfo::SaveTranscodeStatus(TranscodingStatus trans)
 {
@@ -5187,53 +5319,6 @@ bool ProgramInfo::QueryTuningInfo(QString &channum, QString &input) const
     }
 }
 
-/** \brief Returns the display name of the card input for this program.
- *  \note Ideally this would call CardUtil::GetDisplayName(), but
- *        that's in libmythtv.  Dupliacte code for now until a better
- *        solution can be found.
- */
-QString ProgramInfo::QueryInputDisplayName(void) const
-{
-    QString result;
-
-    if (recordedid)
-    {
-        MSqlQuery query(MSqlQuery::InitCon());
-        query.prepare("SELECT inputname "
-                      "FROM recorded "
-                      "WHERE recordedid = :RECORDEDID");
-        query.bindValue(":RECORDEDID", recordedid);
-
-        if (!query.exec())
-            MythDB::DBError("ProgramInfo::GetInputDisplayName()", query);
-        else if (query.next())
-            result = query.value(0).toString();
-    }
-
-    if (result.isEmpty() && inputid)
-    {
-        MSqlQuery query(MSqlQuery::InitCon());
-        query.prepare("SELECT displayname, cardid, inputname "
-                      "FROM capturecard "
-                      "WHERE cardid = :INPUTID");
-        query.bindValue(":INPUTID", inputid);
-
-        if (!query.exec())
-            MythDB::DBError("ProgramInfo::GetInputDisplayName()", query);
-        else if (query.next())
-        {
-            result = query.value(0).toString();
-            if (result.isEmpty())
-            {
-                result = QString("%1: %2").arg(query.value(1).toInt())
-                    .arg(query.value(2).toString());
-            }
-        }
-    }
-
-    return result;
-}
-
 static int init_tr(void)
 {
     static bool done = false;
@@ -5379,6 +5464,7 @@ void ProgramInfo::SubstituteMatches(QString &str)
         str.replace(QString("%%1ISOUTC%").arg(time_str[i]),
                     time_dtr[i]->toString(Qt::ISODate));
     }
+    str.replace(QString("%RECORDEDID%"), QString::number(recordedid));
 }
 
 QMap<QString,uint32_t> ProgramInfo::QueryInUseMap(void)
@@ -5791,12 +5877,26 @@ bool LoadFromOldRecorded(ProgramList &destination, const QString &sql,
         "WHERE oldrecorded.future = 0 "
         + sql;
 
+    bool hasLimit = querystr.contains(" LIMIT ",Qt::CaseInsensitive);
+
+    // make sure the most recent rows are retrieved first in case
+    // there are more than the limit to be set below
+    if (!hasLimit && !querystr.contains(" ORDER ",Qt::CaseInsensitive))
+        querystr += " ORDER BY starttime DESC ";
+
     // If a limit arg was given then append the LIMIT, otherwise set a hard
-    // limit of 20000.
+    // limit of 20000, which can be overridden by a setting
     if (limit > 0)
         querystr += QString("LIMIT %1 ").arg(limit);
-    else if (!querystr.contains(" LIMIT "))
-        querystr += " LIMIT 20000 "; // For performance reasons we have to have an upper limit
+    else if (!hasLimit)
+    {
+        // For performance reasons we have to have an upper limit
+        int nLimit = gCoreContext->GetNumSetting("PrevRecLimit", 20000);
+        // For sanity sake at least 100
+        if (nLimit < 100)
+            nLimit = 100;
+        querystr += QString("LIMIT %1 ").arg(nLimit);
+    }
 
     MSqlBindings::const_iterator it;
     // If count is non-zero then also return total number of matching records,
@@ -5904,6 +6004,7 @@ bool LoadFromOldRecorded(ProgramList &destination, const QString &sql,
  *  \param recMap          recording map
  *  \param sort            sort order, negative for descending, 0 for
  *                         unsorted, positive for ascending
+ *  \param sortBy          comma separated list of fields to sort by
  *  \return true if it succeeds, false if it fails.
  *  \sa QueryInUseMap(void)
  *      QueryJobsRunning(int)
@@ -5915,7 +6016,8 @@ bool LoadFromRecorded(
     const QMap<QString,uint32_t> &inUseMap,
     const QMap<QString,bool> &isJobRunning,
     const QMap<QString, ProgramInfo*> &recMap,
-    int sort)
+    int sort,
+    const QString &sortBy)
 {
     destination.clear();
 
@@ -5929,10 +6031,66 @@ bool LoadFromRecorded(
     if (possiblyInProgressRecordingsOnly)
         thequery += "WHERE r.endtime >= NOW() AND r.starttime <= NOW() ";
 
-    if (sort)
-        thequery += "ORDER BY r.starttime ";
-    if (sort < 0)
-        thequery += "DESC ";
+    if (sortBy.isEmpty())
+    {
+        if (sort)
+            thequery += "ORDER BY r.starttime ";
+        if (sort < 0)
+            thequery += "DESC ";
+    }
+    else
+    {
+        QStringList sortByFields;
+        sortByFields << "starttime" <<  "title" <<  "subtitle" << "season" << "episode" << "category"
+                     <<  "watched" << "stars" << "originalairdate" << "recgroup" << "storagegroup"
+                     <<  "channum" << "callsign" << "name";
+
+        // sanity check the fields are one of the above fields
+        QString sSortBy;
+        QStringList fields = sortBy.split(",");
+        for (int x = 0; x < fields.size(); x++)
+        {
+            bool ascending = true;
+            QString field = fields.at(x).simplified().toLower();
+
+            if (field.endsWith("desc"))
+            {
+                ascending = false;
+                field = field.remove("desc");
+            }
+
+            if (field.endsWith("asc"))
+            {
+                ascending = true;
+                field = field.remove("asc");
+            }
+
+            field = field.simplified();
+
+            if (field == "channelname")
+                field = "name";
+
+            if (sortByFields.contains(field))
+            {
+                QString table;
+                if (field == "channum" || field == "callsign" || field == "name")
+                    table = "c";
+                else
+                    table = "r";
+
+                if (sSortBy.isEmpty())
+                    sSortBy = QString("%1.%2 %3").arg(table).arg(field).arg(ascending ? "ASC" : "DESC");
+                else
+                    sSortBy += QString(",%1.%2 %3").arg(table).arg(field).arg(ascending ? "ASC" : "DESC");
+            }
+            else
+            {
+                LOG(VB_GENERAL, LOG_WARNING, QString("ProgramInfo::LoadFromRecorded() got an unknown sort field '%1' - ignoring").arg(fields.at(x)));
+            }
+        }
+
+        thequery += "ORDER BY " + sSortBy;
+    }
 
     MSqlQuery query(MSqlQuery::InitCon());
     query.prepare(thequery);

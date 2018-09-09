@@ -65,11 +65,8 @@ WelcomeDialog::WelcomeDialog(MythScreenStack *parent, const char *name)
 
 bool WelcomeDialog::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("welcome-ui.xml", "welcome_screen", this);
-
+    bool foundtheme = LoadWindowFromXML("welcome-ui.xml", "welcome_screen", this);
     if (!foundtheme)
         return false;
 
@@ -147,7 +144,7 @@ void WelcomeDialog::customEvent(QEvent *e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *) e;
+        MythEvent *me = static_cast<MythEvent *>(e);
 
         if (me->Message().startsWith("RECORDING_LIST_CHANGE") ||
             me->Message() == "UPDATE_PROG_INFO")
@@ -224,9 +221,8 @@ bool WelcomeDialog::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Welcome", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Welcome", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -700,7 +696,12 @@ void WelcomeDialog::shutdownNow(void)
         {
             QString time_ts;
             setwakeup_cmd.replace("$time",
-                                  time_ts.setNum(restarttime.toTime_t()));
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
+                                  time_ts.setNum(restarttime.toTime_t())
+#else
+                                  time_ts.setNum(restarttime.toSecsSinceEpoch())
+#endif
+                );
         }
         else
             setwakeup_cmd.replace(

@@ -177,7 +177,7 @@ static int ExtractImage(const MythUtilCommandLineParser &cmdline)
     return GENERIC_EXIT_OK;
 }
 
-static int ScanMusic(const MythUtilCommandLineParser &cmdline)
+static int ScanMusic(const MythUtilCommandLineParser &/*cmdline*/)
 {
     MusicFileScanner *fscan = new MusicFileScanner();
     QStringList dirList;
@@ -195,7 +195,7 @@ static int ScanMusic(const MythUtilCommandLineParser &cmdline)
     return GENERIC_EXIT_OK;
 }
 
-static int UpdateRadioStreams(const MythUtilCommandLineParser &cmdline)
+static int UpdateRadioStreams(const MythUtilCommandLineParser &/*cmdline*/)
 {
     // check we have the correct Music Schema Version (maybe the FE hasn't been run yet)
     if (gCoreContext->GetNumSetting("MusicDBSchemaVer", 0) < 1024)
@@ -235,8 +235,6 @@ static int CalcTrackLength(const MythUtilCommandLineParser &cmdline)
         return GENERIC_EXIT_NOT_OK;
     }
 
-    av_register_all();
-
     AVFormatContext *inputFC = NULL;
     AVInputFormat *fmt = NULL;
 
@@ -275,9 +273,20 @@ static int CalcTrackLength(const MythUtilCommandLineParser &cmdline)
         AVStream *st = inputFC->streams[i];
         char buf[256];
 
-        avcodec_string(buf, sizeof(buf), st->codec, false);
+        const AVCodec *pCodec = avcodec_find_decoder(st->codecpar->codec_id);
+        if (!pCodec)
+        {
+            LOG(VB_GENERAL, LOG_WARNING,
+                QString("avcodec_find_decoder fail for %1").arg(st->codecpar->codec_id));
+            continue;
+        }
+        AVCodecContext *avctx = avcodec_alloc_context3(pCodec);
+        avcodec_parameters_to_context(avctx, st->codecpar);
+        av_codec_set_pkt_timebase(avctx, st->time_base);
 
-        switch (inputFC->streams[i]->codec->codec_type)
+        avcodec_string(buf, sizeof(buf), avctx, false);
+
+        switch (inputFC->streams[i]->codecpar->codec_type)
         {
             case AVMEDIA_TYPE_AUDIO:
             {
@@ -299,9 +308,10 @@ static int CalcTrackLength(const MythUtilCommandLineParser &cmdline)
             default:
                 LOG(VB_GENERAL, LOG_ERR,
                     QString("Skipping unsupported codec %1 on stream %2")
-                        .arg(inputFC->streams[i]->codec->codec_type).arg(i));
+                        .arg(inputFC->streams[i]->codecpar->codec_type).arg(i));
                 break;
         }
+        avcodec_free_context(&avctx);
     }
 
     // Close input file
@@ -465,11 +475,10 @@ static int FindLyrics(const MythUtilCommandLineParser &cmdline)
 
     QStringList scripts;
     QFileInfoList::const_iterator it = list.begin();
-    const QFileInfo *fi;
 
     while (it != list.end())
     {
-        fi = &(*it);
+        const QFileInfo *fi = &(*it);
         ++it;
         LOG(VB_GENERAL, LOG_NOTICE, QString("Found lyric script at: %1").arg(fi->filePath()));
         scripts.append(fi->filePath());

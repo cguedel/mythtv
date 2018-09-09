@@ -88,11 +88,8 @@ bool MythNews::Create(void)
 {
     QMutexLocker locker(&m_lock);
 
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("news-ui.xml", "news", this);
-
+    bool foundtheme = LoadWindowFromXML("news-ui.xml", "news", this);
     if (!foundtheme)
         return false;
 
@@ -188,7 +185,11 @@ void MythNews::loadSites(void)
         QString name = query.value(0).toString();
         QString url  = query.value(1).toString();
         QString icon = query.value(2).toString();
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
         QDateTime time = MythDate::fromTime_t(query.value(3).toUInt());
+#else
+        QDateTime time = MythDate::fromSecsSinceEpoch(query.value(3).toLongLong());
+#endif
         bool podcast = query.value(4).toInt();
         m_NewsSites.push_back(new NewsSite(name, url, time, podcast));
     }
@@ -391,7 +392,7 @@ void MythNews::updateInfoView(MythUIButtonListItem *selected)
         {
             QString text(tr("Updated") + " - ");
             QDateTime updated(site->lastUpdated());
-            if (updated.toTime_t() != 0) {
+            if (updated.isValid()) {
                 text += MythDate::toString(site->lastUpdated(),
                                            MythDate::kDateTimeFull | MythDate::kSimplify);
             }
@@ -430,9 +431,8 @@ bool MythNews::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("News", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("News", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -484,7 +484,11 @@ void MythNews::slotRetrieveNews(void)
 
 void MythNews::slotNewsRetrieved(NewsSite *site)
 {
+#if QT_VERSION < QT_VERSION_CHECK(5,8,0)
     unsigned int updated = site->lastUpdated().toTime_t();
+#else
+    qint64 updated = site->lastUpdated().toSecsSinceEpoch();
+#endif
 
     MSqlQuery query(MSqlQuery::InitCon());
     query.prepare("UPDATE newssites SET updated = :UPDATED "

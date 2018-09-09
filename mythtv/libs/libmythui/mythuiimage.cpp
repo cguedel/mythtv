@@ -1331,6 +1331,7 @@ void MythUIImage::DrawSelf(MythPainter *p, int xoffset, int yoffset,
         else
             srcRect = currentImageArea;
 
+        p->SetClipRect(clipRect);
         p->DrawImage(area, currentImage, srcRect, alpha);
         currentImage->DecrRef();
         d->m_UpdateLock.unlock();
@@ -1349,7 +1350,7 @@ bool MythUIImage::ParseElement(
 
     if (element.tagName() == "filename")
     {
-        m_imageProperties.isThemeImage = true; // This is an image distributed with the them
+        m_imageProperties.isThemeImage = true; // This is an image distributed with the theme
         m_OrigFilename = m_imageProperties.filename = getFirstText(element);
 
         if (m_imageProperties.filename.endsWith('/'))

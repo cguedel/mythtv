@@ -21,12 +21,7 @@
 #include "dbcheck.h"
 
 #ifdef DCRAW_SUPPORT
-#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
-    // Qt5 imports class name
-    Q_IMPORT_PLUGIN(DcrawPlugin)
-#else
-    Q_IMPORT_PLUGIN(dcrawplugin)
-#endif // QT_VERSION
+Q_IMPORT_PLUGIN(DcrawPlugin)
 #endif // DCRAW_SUPPORT
 void runRandomSlideshow(void);
 
@@ -138,8 +133,8 @@ static void setupKeys(void)
     REG_KEY("Gallery", "FULLSCREEN", QT_TRANSLATE_NOOP("MythControls",
         "Toggle scale to fullscreen/scale to fit"), "W");
     REG_MEDIA_HANDLER(QT_TRANSLATE_NOOP("MythControls",
-        "MythGallery Media Handler 1/3"), "", "", handleMedia,
-        MEDIATYPE_DATA | MEDIATYPE_MIXED, QString::null);
+        "MythGallery Media Handler 1/3"), "", handleMedia,
+        MEDIATYPE_DATA | MEDIATYPE_MIXED, QString());
     QString filt;
     Q_FOREACH(QString format, GalleryUtil::GetImageFilter())
     {
@@ -150,7 +145,7 @@ static void setupKeys(void)
             filt += "," + format;
     }
     REG_MEDIA_HANDLER(QT_TRANSLATE_NOOP("MythControls",
-        "MythGallery Media Handler 2/3"), "", "", handleMedia,
+        "MythGallery Media Handler 2/3"), "", handleMedia,
         MEDIATYPE_MGALLERY, filt);
     filt.clear();
     Q_FOREACH(QString format, GalleryUtil::GetMovieFilter())
@@ -162,7 +157,7 @@ static void setupKeys(void)
             filt += "," + format;
     }
     REG_MEDIA_HANDLER(QT_TRANSLATE_NOOP("MythControls",
-        "MythGallery Media Handler 3/3"), "", "", handleMedia,
+        "MythGallery Media Handler 3/3"), "", handleMedia,
         MEDIATYPE_MVIDEO, filt);
 }
 

@@ -85,7 +85,7 @@ EncoderLink::~EncoderLink(void)
     SetSocket(NULL);
 }
 
-/** \fn Encoder::HasSockAndIncrRef()
+/**
  *  \brief Atomicly checks if sock is not null and increases its refcount.
  */
 bool EncoderLink::HasSockAndIncrRef()
@@ -99,7 +99,7 @@ bool EncoderLink::HasSockAndIncrRef()
     return false;
 }
 
-/** \fn Encoder::HasSockAndDecrRef()
+/**
  *  \brief Atomicly checks if sock is not null and decreases its refcount.
  */
 bool EncoderLink::HasSockAndDecrRef()
@@ -429,8 +429,7 @@ int EncoderLink::LockTuner()
 /** \fn EncoderLink::StartRecording(ProgramInfo*)
  *  \brief Tells TVRec to Start recording the program "rec" as soon as possible.
  *
- *  \return +1 if the recording started successfully,
- *          -1 if TVRec is busy doing something else, 0 otherwise.
+ *  \return a RecStatus::Type indicating the state of the recording.
  *  \sa RecordPending(const ProgramInfo*, int, bool), StopRecording()
  */
 RecStatus::Type EncoderLink::StartRecording(ProgramInfo *rec)
@@ -1006,6 +1005,18 @@ bool EncoderLink::SetChannelInfo(uint chanid, uint sourceid,
 
     return tv->SetChannelInfo(chanid, sourceid, oldchannum,
                               callsign, channum, channame, xmltv);
+}
+
+bool EncoderLink::AddChildInput(uint childid)
+{
+    if (local)
+    {
+        LOG(VB_GENERAL, LOG_ERR, LOC + "Called on local recorder");
+        return false;
+    }
+
+    bool retval = sock->AddChildInput(childid);
+    return retval;
 }
 
 /* vim: set expandtab tabstop=4 shiftwidth=4: */

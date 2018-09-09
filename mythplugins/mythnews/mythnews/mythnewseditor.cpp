@@ -20,6 +20,9 @@
 #define LOC_ERR  QString("MythNewsEditor, Error: ")
 
 /** \brief Creates a new MythNewsEditor Screen
+ *  \param site The web page for which an entry is being created.
+ *  \param edit If true, then editing an existing entry instead of
+ *              creating a new entry.
  *  \param parent Pointer to the screen stack
  *  \param name The name of the window
  */
@@ -117,9 +120,8 @@ bool MythNewsEditor::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("News", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("News", event, actions);
 
     if (!handled && MythScreenType::keyPressEvent(event))
         handled = true;

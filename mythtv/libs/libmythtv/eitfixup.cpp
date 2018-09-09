@@ -392,8 +392,8 @@ void EITFixUp::Fix(DBEventEIT &event) const
  *  If there is no authority on the ID, add the default one.
  *  If there is no default, return an empty id.
  *
+ *  \param chanid The channel whose data should be updated.
  *  \param id The ID string to add the authority to.
- *  \param query Object to use for SQL queries.
  *
  *  \return ID with the authority added or empty string if not a valid CRID.
  */
@@ -423,7 +423,6 @@ QString EITFixUp::AddDVBEITAuthority(uint chanid, const QString &id)
 /**
  *  \brief Use this for the Canadian BellExpressVu to standardize DVB-S guide.
  *  \todo  deal with events that don't have eventype at the begining?
- *  \TODO
  */
 void EITFixUp::FixBellExpressVu(DBEventEIT &event) const
 {
@@ -811,7 +810,7 @@ void EITFixUp::SetUKSubtitle(DBEventEIT &event) const
             strEnd = "!";
         }
         else
-            strEnd = QString::null;
+            strEnd.clear();
     }
 
     if (!strListEnd.empty())
@@ -1130,7 +1129,7 @@ void EITFixUp::FixUK(DBEventEIT &event) const
     if (event.description.isEmpty() && !event.subtitle.isEmpty())
     {
         event.description=event.subtitle;
-        event.subtitle=QString::null;
+        event.subtitle.clear();
     }
 }
 
@@ -1422,7 +1421,7 @@ void EITFixUp::FixAUDescription(DBEventEIT &event) const
     if (event.description.isEmpty() && !event.subtitle.isEmpty())//due to ten's copyright info, this won't be caught before
     {
         event.description = event.subtitle;
-        event.subtitle = QString::null;
+        event.subtitle.clear();
     }
     if (event.description.startsWith(event.title+" - "))
         event.description.remove(0,event.title.length()+3);
@@ -1457,7 +1456,7 @@ void EITFixUp::FixAUNine(DBEventEIT &event) const
     }
     if (event.subtitle == "Movie")
     {
-        event.subtitle = QString::null;
+        event.subtitle.clear();
         event.categoryType = ProgramInfo::kCategoryMovie;
     }
     if (event.description.startsWith(event.title))
@@ -2336,14 +2335,13 @@ void EITFixUp::FixDK(DBEventEIT &event) const
 {
     // Source: YouSee Rules of Operation v1.16
     // url: http://yousee.dk/~/media/pdf/CPE/Rules_Operation.ashx
-    int        position = -1;
     int        episode = -1;
     int        season = -1;
     QRegExp    tmpRegEx;
     // Title search
     // episode and part/part total
     tmpRegEx = m_dkEpisode;
-    position = event.title.indexOf(tmpRegEx);
+    int position = event.title.indexOf(tmpRegEx);
     if (position != -1)
     {
       episode = tmpRegEx.cap(1).toInt();

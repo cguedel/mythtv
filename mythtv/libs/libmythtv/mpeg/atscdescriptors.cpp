@@ -96,7 +96,7 @@ QString MultipleStringStructure::GetBestMatch(QMap<uint,uint> &langPrefs) const
 {
     if (StringCount())
         return GetFullString(GetIndexOfBestMatch(langPrefs));
-    return QString::null;
+    return QString();
 }
 
 QString MultipleStringStructure::GetSegment(uint i, uint j) const
@@ -245,6 +245,7 @@ QString AudioStreamDescriptor::SampleRateCodeString(void) const
 
 QString AudioStreamDescriptor::BitRateCodeString(void) const
 {
+    // cppcheck-suppress variableScope
     static const char* ebr[19] =
     {
         "=32kbps",  "=40kbps",  "=48kbps",  "=56kbps",  "=64kbps",

@@ -40,7 +40,6 @@ V4LChannel::V4LChannel(TVRec *parent, const QString &videodevice,
       audio_device(audiodevice),    videofd(-1),
       device_name(),                driver_name(),
       curList(NULL),                totalChannels(0),
-      currentFormat(),
       has_stream_io(false),         has_std_io(false),
       has_async_io(false),
       has_tuner(false),             has_sliced_vbi(false),
@@ -301,10 +300,9 @@ void V4LChannel::SetFormat(const QString &format)
     LOG(VB_CHANNEL, LOG_INFO, LOC + QString("SetFormat(%1) fmt(%2) input(%3)")
             .arg(format).arg(fmt).arg(inputNum));
 
-    if ((fmt == currentFormat) || SetInputAndFormat(inputNum, fmt))
-    {
-        currentFormat = fmt;
-    }
+    if (!SetInputAndFormat(inputNum, fmt))
+        LOG(VB_GENERAL, LOG_ERR, LOC + "Failed to set format." + ENO);
+
 }
 
 int V4LChannel::SetDefaultFreqTable(const QString &name)
@@ -404,8 +402,6 @@ bool V4LChannel::Tune(const DTVMultiplex &tuning)
  *
  *  \param frequency Frequency in Hz, this is divided by 62.5 kHz or 62.5 Hz
  *                   depending on the modulator and sent to the hardware.
- *  \param inputname Name of the input (Television, Antenna 1, etc.)
- *  \param modulation "radio", "analog", or "digital"
  */
 bool V4LChannel::Tune(uint64_t frequency)
 {
@@ -508,7 +504,7 @@ QString V4LChannel::GetFormatForChannel(QString channum, QString inputname)
     query.bindValue(":INPUTNAME", inputname);
     query.bindValue(":INPUTID",    m_inputid);
 
-    QString fmt = QString::null;
+    QString fmt;
     if (!query.exec() || !query.isActive())
         MythDB::DBError("GetFormatForChannel:find format", query);
     else if (query.next())

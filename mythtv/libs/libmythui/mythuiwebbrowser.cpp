@@ -251,7 +251,7 @@ void BrowserApi::customEvent(QEvent *e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)e;
+        MythEvent *me = static_cast<MythEvent *>(e);
         QString message = me->Message();
 
         if (!message.startsWith("MUSIC_CONTROL"))
@@ -655,7 +655,7 @@ void MythWebView::customEvent(QEvent *event)
     }
     else if ((MythEvent::Type)(event->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QStringList tokens = me->Message().split(" ", QString::SkipEmptyParts);
 
         if (tokens.isEmpty())
@@ -1137,7 +1137,6 @@ void MythUIWebBrowser::SetActive(bool active)
         m_browser->setFocus();
         m_browser->show();
         m_browser->raise();
-#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
         if (qApp->platformName().contains("egl"))
         {
             m_browser->setParent(0);
@@ -1145,17 +1144,14 @@ void MythUIWebBrowser::SetActive(bool active)
             m_browser->show();
             m_browser->raise();
         }
-#endif
         m_browser->setUpdatesEnabled(true);
     }
     else
     {
         m_browser->clearFocus();
         m_browser->hide();
-#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
         if (qApp->platformName().contains("egl"))
             m_browser->setParent(GetMythMainWindow());
-#endif
         UpdateBuffer();
     }
 }
@@ -1510,7 +1506,7 @@ void MythUIWebBrowser::Pulse(void)
  *  \copydoc MythUIType::DrawSelf()
  */
 void MythUIWebBrowser::DrawSelf(MythPainter *p, int xoffset, int yoffset,
-                                int alphaMod, QRect clipRegion)
+                                int alphaMod, QRect clipRect)
 {
     if (!m_image || m_image->isNull() || !m_browser || m_browser->hasFocus())
         return;
@@ -1518,6 +1514,7 @@ void MythUIWebBrowser::DrawSelf(MythPainter *p, int xoffset, int yoffset,
     QRect area = m_actualBrowserArea;
     area.translate(xoffset, yoffset);
 
+    p->SetClipRect(clipRect);
     p->DrawImage(area.x(), area.y(), m_image, alphaMod);
 }
 

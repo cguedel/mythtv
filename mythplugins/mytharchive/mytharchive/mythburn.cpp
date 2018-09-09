@@ -92,11 +92,8 @@ MythBurn::~MythBurn(void)
 
 bool MythBurn::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("mythburn-ui.xml", "mythburn", this);
-
+    bool foundtheme = LoadWindowFromXML("mythburn-ui.xml", "mythburn", this);
     if (!foundtheme)
         return false;
 
@@ -151,9 +148,8 @@ bool MythBurn::keyPressEvent(QKeyEvent *event)
     if (!m_moveMode && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Archive", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Archive", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -214,10 +210,9 @@ bool MythBurn::keyPressEvent(QKeyEvent *event)
 void MythBurn::updateSizeBar(void)
 {
     int64_t size = 0;
-    ArchiveItem *a;
     for (int x = 0; x < m_archiveList.size(); x++)
     {
-        a = m_archiveList.at(x);
+        ArchiveItem *a = m_archiveList.at(x);
         size += a->newsize;
     }
 
@@ -435,11 +430,10 @@ void MythBurn::updateArchiveList(void)
     }
     else
     {
-        ArchiveItem *a;
         for (int x = 0; x < m_archiveList.size(); x++)
         {
             qApp->processEvents();
-            a = m_archiveList.at(x);
+            ArchiveItem *a = m_archiveList.at(x);
 
             // get duration of this file
             if (a->duration == 0)

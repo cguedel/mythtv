@@ -32,11 +32,8 @@ AudioSetupWizard::AudioSetupWizard(MythScreenStack *parent,
 
 bool AudioSetupWizard::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("config-ui.xml", "audiowizard", this);
-
+    bool foundtheme = LoadWindowFromXML("config-ui.xml", "audiowizard", this);
     if (!foundtheme)
         return false;
 
@@ -375,7 +372,7 @@ void AudioSetupWizard::save(void)
     gCoreContext->SaveSetting("Audio48kOverride", false);
     gCoreContext->SaveSetting("HBRPassthru", true);
     gCoreContext->SaveSetting("PassThruDeviceOverride", false);
-    gCoreContext->SaveSetting("PassThruOutputDevice", QString::null);
+    gCoreContext->SaveSetting("PassThruOutputDevice", QString());
 
     int channels = m_speakerNumberButtonList->GetItemCurrent()->GetData()
                                .value<int>();
@@ -413,7 +410,7 @@ bool AudioSetupWizard::keyPressEvent(QKeyEvent *event)
 
     bool handled = false;
 
-    if (!handled && MythScreenType::keyPressEvent(event))
+    if (MythScreenType::keyPressEvent(event))
         handled = true;
 
     return handled;

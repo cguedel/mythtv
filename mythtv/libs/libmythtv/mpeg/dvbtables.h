@@ -22,13 +22,13 @@ class MTV_PUBLIC NetworkInformationTable : public PSIPTable
 {
   public:
     NetworkInformationTable(const NetworkInformationTable& table)
-        : PSIPTable(table), _cached_network_name(QString::null)
+        : PSIPTable(table)
     {
         assert(TableID::NIT == TableID() || TableID::NITo == TableID());
         Parse();
     }
     explicit NetworkInformationTable(const PSIPTable& table)
-        : PSIPTable(table), _cached_network_name(QString::null)
+        : PSIPTable(table)
     {
         assert(TableID::NIT == TableID() || TableID::NITo == TableID());
         Parse();
@@ -255,7 +255,7 @@ class MTV_PUBLIC DiscontinuityInformationTable : public PSIPTable
 
 class MTV_PUBLIC SelectionInformationTable : public PSIPTable
 {
-    SelectionInformationTable(const PSIPTable& table) : PSIPTable(table)
+    explicit SelectionInformationTable(const PSIPTable& table) : PSIPTable(table)
         { ; }
     // table_id 8
     // section_syntax_indicator 1

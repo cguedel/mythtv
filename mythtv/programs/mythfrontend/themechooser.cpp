@@ -231,7 +231,7 @@ void ThemeChooser::Load(void)
 
     ResetBusyPopup();
 
-    qSort(m_infoList.begin(), m_infoList.end(), sortThemeNames);
+    std::sort(m_infoList.begin(), m_infoList.end(), sortThemeNames);
 }
 
 void ThemeChooser::LoadVersion(const QString &version,
@@ -242,8 +242,9 @@ void ThemeChooser::LoadVersion(const QString &version,
     QString themeSite = QString("%1/%2")
         .arg(gCoreContext->GetSetting("ThemeRepositoryURL",
              "http://themes.mythtv.org/themes/repository")).arg(version);
-    QDir remoteThemesDir(GetMythUI()->GetThemeCacheDir()
-                             .append("/themechooser/").append(version));
+    QString destdir = GetCacheDir().append("/themechooser/");
+    QString versiondir = QString("%1/%2").arg(destdir).arg(version);
+    QDir remoteThemesDir(versiondir);
 
     int downloadFailures =
         gCoreContext->GetNumSetting("ThemeInfoDownloadFailures", 0);
@@ -285,9 +286,6 @@ void ThemeChooser::LoadVersion(const QString &version,
 
         QString url = themeSite;
         url.append("/themes.zip");
-        QString destdir = GetMythUI()->GetThemeCacheDir();
-        destdir.append("/themechooser");
-        QString versiondir = QString("%1/%2").arg(destdir).arg(version);
         if (!removeThemeDir(versiondir))
             ShowOkPopup(tr("Unable to remove '%1'").arg(versiondir));
         QDir dir;
@@ -607,9 +605,8 @@ bool ThemeChooser::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Theme Chooser", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Theme Chooser", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; ++i)
     {
@@ -822,7 +819,7 @@ void ThemeChooser::customEvent(QEvent *e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)e;
+        MythEvent *me = static_cast<MythEvent *>(e);
         QStringList tokens = me->Message().split(" ", QString::SkipEmptyParts);
 
         if (tokens.isEmpty())
@@ -983,11 +980,10 @@ bool ThemeChooser::removeThemeDir(const QString &dirname)
     dir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
     QFileInfoList list = dir.entryInfoList();
     QFileInfoList::const_iterator it = list.begin();
-    const QFileInfo *fi;
 
     while (it != list.end())
     {
-        fi = &(*it++);
+        const QFileInfo *fi = &(*it++);
         if (fi->isFile() && !fi->isSymLink())
         {
             if (!QFile::remove(fi->absoluteFilePath()))
@@ -1071,8 +1067,6 @@ void ThemeUpdateChecker::checkForUpdate(void)
         return;
 
     ThemeInfo *localTheme = NULL;
-    int locMaj = 0;
-    int locMin = 0;
 
     if (RemoteFile::Exists(m_infoPackage))
     {
@@ -1098,6 +1092,9 @@ void ThemeUpdateChecker::checkForUpdate(void)
 
             if (RemoteFile::Exists(infoXML))
             {
+                int locMaj = 0;
+                int locMin = 0;
+
                 ThemeInfo *remoteTheme = new ThemeInfo(remoteThemeDir);
                 if (!remoteTheme || remoteTheme->GetType() & THEME_UNKN)
                 {

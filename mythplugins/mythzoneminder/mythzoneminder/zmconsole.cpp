@@ -146,11 +146,8 @@ ZMConsole::~ZMConsole()
 
 bool ZMConsole::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("zoneminder-ui.xml", "zmconsole", this);
-
+    bool foundtheme = LoadWindowFromXML("zoneminder-ui.xml", "zmconsole", this);
     if (!foundtheme)
         return false;
 
@@ -230,9 +227,8 @@ bool ZMConsole::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Global", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Global", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -255,10 +251,7 @@ bool ZMConsole::keyPressEvent(QKeyEvent *event)
 
 void ZMConsole::showEditFunctionPopup()
 {
-    Monitor *currentMonitor = NULL;
-
-    currentMonitor = m_monitor_list->GetItemCurrent()->GetData().value<Monitor*>();
-
+    Monitor *currentMonitor = m_monitor_list->GetItemCurrent()->GetData().value<Monitor*>();
     if (!currentMonitor)
         return;
 

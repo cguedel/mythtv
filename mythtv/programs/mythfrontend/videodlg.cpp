@@ -1,6 +1,7 @@
 #include <set>
 #include <map>
 #include <functional>   //not2
+#include <memory>
 
 #include <QApplication>
 #include <QTimer>
@@ -358,7 +359,7 @@ namespace
         bool            m_bConnected;
     };
 
-    FanartLoader fanartLoader;
+    std::unique_ptr<FanartLoader> fanartLoader;
 
     struct CopyMetadataDestination
     {
@@ -401,7 +402,9 @@ namespace
                 }
                 else
                 {
-                    fanartLoader.LoadImage(filename, image);
+                    if (fanartLoader == nullptr)
+                        fanartLoader.reset(new FanartLoader);
+                    fanartLoader->LoadImage(filename, image);
                 }
             }
         }
@@ -637,21 +640,19 @@ class ItemDetailPopup : public MythScreenType
   protected:
     bool keyPressEvent(QKeyEvent *levent)
     {
-        if (!MythScreenType::keyPressEvent(levent))
+        if (MythScreenType::keyPressEvent(levent))
+            return true;
+
+        QStringList actions;
+        bool handled = GetMythMainWindow()->TranslateKeyPress("Video",
+                       levent, actions);
+        if (!handled && !OnKeyAction(actions))
         {
-            QStringList actions;
-            bool handled = GetMythMainWindow()->TranslateKeyPress("Video",
-                           levent, actions);
-
-            if (!handled && !OnKeyAction(actions))
-            {
-                handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend",
-                        levent, actions);
-                OnKeyAction(actions);
-            }
+            handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend",
+                    levent, actions);
+            OnKeyAction(actions);
         }
-
-        return true;
+        return handled;
     }
 
   private:
@@ -1443,13 +1444,12 @@ QString VideoDialog::GetImageFromFolder(VideoMetadata *metadata)
     test_files.append(filename + ".jpg");
     test_files.append(filename + ".jpeg");
     test_files.append(filename + ".gif");
-    bool foundCover;
 
     for (QStringList::const_iterator tfp = test_files.begin();
             tfp != test_files.end(); ++tfp)
     {
         QString imagePath = *tfp;
-        foundCover = false;
+        bool foundCover = false;
         if (!host.isEmpty())
         {
             // Strip out any extra /'s
@@ -1564,7 +1564,7 @@ QString VideoDialog::GetImageFromFolder(VideoMetadata *metadata)
 }
 
 /** \fn VideoDialog::GetCoverImage(MythGenericTree *node)
- *  \brief A "hunt" for cover art to apply for a folder item..
+ *  \brief A "hunt" for cover art to apply for a folder item.
  *  \return QString local or myth:// for the first found cover file.
  */
 QString VideoDialog::GetCoverImage(MythGenericTree *node)
@@ -1597,7 +1597,6 @@ QString VideoDialog::GetCoverImage(MythGenericTree *node)
         test_files.append(filename + ".jpg");
         test_files.append(filename + ".jpeg");
         test_files.append(filename + ".gif");
-        bool foundCover;
 
         for (QStringList::const_iterator tfp = test_files.begin();
                 tfp != test_files.end(); ++tfp)
@@ -1607,7 +1606,7 @@ QString VideoDialog::GetCoverImage(MythGenericTree *node)
             LOG(VB_GENERAL, LOG_DEBUG, QString("Cover check :%1 : ").arg(*tfp));
 #endif
 
-            foundCover = false;
+            bool foundCover = false;
             if (!host.isEmpty())
             {
                 // Strip out any extra /'s
@@ -1804,6 +1803,7 @@ QString VideoDialog::GetFirstImage(MythGenericTree *node, QString type,
     if (list_count > 0)
     {
         QList<MythGenericTree *> subDirs;
+        // cppcheck-suppress variableScope
         int maxRecurse = 1;
 
         for (int i = 0; i < list_count; i++)
@@ -2032,9 +2032,8 @@ bool VideoDialog::keyPressEvent(QKeyEvent *levent)
     if (GetFocusWidget()->keyPressEvent(levent))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Video", levent, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Video", levent, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -2469,7 +2468,10 @@ void VideoDialog::VideoMenu()
     m_menuPopup = new MythDialogBox(menu, m_popupStack, "videomenupopup");
 
     if (m_menuPopup->Create())
+    {
         m_popupStack->AddScreen(m_menuPopup);
+        connect(m_menuPopup, SIGNAL(Closed(QString,int)), SLOT(popupClosed(QString,int)));
+    }
     else
         delete m_menuPopup;
 }
@@ -2533,9 +2535,26 @@ void VideoDialog::DisplayMenu()
     m_menuPopup = new MythDialogBox(menu, m_popupStack, "videomenupopup");
 
     if (m_menuPopup->Create())
+    {
         m_popupStack->AddScreen(m_menuPopup);
+        connect(m_menuPopup, SIGNAL(Closed(QString,int)), SLOT(popupClosed(QString,int)));
+    }
     else
         delete m_menuPopup;
+}
+
+// Switch from the display menu to the actions menu on second
+// menu press
+
+void VideoDialog::popupClosed(QString which, int result)
+{
+    m_menuPopup = NULL;
+
+    if (result == -2)
+    {
+        if (which == "display")
+            VideoMenu();
+    }
 }
 
 /** \fn VideoDialog::CreateViewMenu()
@@ -2893,7 +2912,7 @@ void VideoDialog::SwitchVideoYearGroup()
    SwitchLayout(m_d->m_type, BRS_YEAR);
 }
 
-/** \fn VideoDialog::SwitchVideoDirectoryGroup()
+/** \fn VideoDialog::SwitchVideoDirectorGroup()
  *  \brief Switch to Director browse mode.
  *  \return void.
  */
@@ -2911,7 +2930,7 @@ void VideoDialog::SwitchVideoStudioGroup()
    SwitchLayout(m_d->m_type, BRS_STUDIO);
 }
 
-/** \fn VideoDialog::SwitchVideoCastGroup()
+/**
  *  \brief Switch to Cast browse mode.
  *  \return void.
  */

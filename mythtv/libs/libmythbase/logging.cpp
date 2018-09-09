@@ -209,7 +209,7 @@ char *LoggingItem::getThreadName(void)
 
 /// \brief Get the thread ID of the thread that produced the LoggingItem
 /// \return Thread ID of the producing thread, cast to a 64-bit signed integer
-/// \notes In different platforms, the actual value returned here will vary.
+/// \note  In different platforms, the actual value returned here will vary.
 ///        The intention is to get a thread ID that will map well to what is
 ///        shown in gdb.
 int64_t LoggingItem::getThreadTid(void)
@@ -222,7 +222,7 @@ int64_t LoggingItem::getThreadTid(void)
 /// \brief Set the thread ID of the thread that produced the LoggingItem.  This
 ///        code is actually run in the thread in question as part of the call
 ///        to LOG()
-/// \notes In different platforms, the actual value returned here will vary.
+/// \note  In different platforms, the actual value returned here will vary.
 ///        The intention is to get a thread ID that will map well to what is
 ///        shown in gdb.
 void LoggingItem::setThreadTid(void)
@@ -444,6 +444,7 @@ void LoggerThread::run(void)
 
     RunEpilog();
 
+    // cppcheck-suppress knownConditionTrueFalse
     if (dieNow)
     {
         qApp->processEvents();
@@ -539,7 +540,7 @@ void LoggerThread::launchLogServer(void)
 ///         when it hasn't heard from us within a second.  After no responses
 ///         from us for 5s, the logs will be closed.
 /// \param  msg    The message received (can be multi-part)
-void LoggerThread::messageReceived(const QList<QByteArray> &msg)
+void LoggerThread::messageReceived(const QList<QByteArray> &/*msg*/)
 {
     m_initialWaiting = false;
     // cout << "ping" << endl;
@@ -636,8 +637,6 @@ void LoggerThread::handleItem(LoggingItem *item)
 bool LoggerThread::logConsole(LoggingItem *item)
 {
     char                line[MAX_STRING_LENGTH];
-    char                usPart[9];
-    char                timestamp[TIMESTAMP_MAX];
 
     if (m_quiet || (m_progress && item->m_level > LOG_ERR))
         return false;
@@ -651,6 +650,8 @@ bool LoggerThread::logConsole(LoggingItem *item)
         snprintf( line, MAX_STRING_LENGTH, "%s", item->m_message );
     else
     {
+        char   usPart[9];
+        char   timestamp[TIMESTAMP_MAX];
         time_t epoch = item->epoch();
         struct tm tm;
         localtime_r(&epoch, &tm);
@@ -916,6 +917,7 @@ bool logPropagateNoServer(void)
 /// \param  dblog       true if database logging is requested
 /// \param  propagate   true if the logfile path needs to be propagated to child
 ///                     processes.
+/// \param  noserver    true if messages should *not* be sent to mythlogserver
 void logStart(QString logfile, int progress, int quiet, int facility,
               LogLevel_t level, bool dblog, bool propagate, bool noserver)
 {

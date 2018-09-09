@@ -48,14 +48,14 @@
 /// How many milliseconds the signal monitor should wait between checks
 const uint TVRec::kSignalMonitoringRate = 50; /* msec */
 
-QMutex            TVRec::inputsLock;
+QReadWriteLock    TVRec::inputsLock;
 QMap<uint,TVRec*> TVRec::inputs;
 
 static bool is_dishnet_eit(uint inputid);
 static int init_jobs(const RecordingInfo *rec, RecordingProfile &profile,
                      bool on_host, bool transcode_bfr_comm, bool on_line_comm);
 static void apply_broken_dvb_driver_crc_hack(ChannelBase*, MPEGStreamData*);
-static int eit_start_rand(uint inputid, int eitTransportTimeout);
+static int eit_start_rand(int eitTransportTimeout);
 
 /** \class TVRec
  *  \brief This is the coordinating class of the \ref recorder_subsystem.
@@ -75,11 +75,11 @@ static int eit_start_rand(uint inputid, int eitTransportTimeout);
  *  current input.
  */
 
-/** \fn TVRec::TVRec(int)
+/**
  *  \brief Performs instance initialiation not requiring access to database.
  *
  *  \sa Init()
- *  \param inputid
+ *  \param _inputid
  */
 TVRec::TVRec(int _inputid)
        // Various components TVRec coordinates
@@ -100,7 +100,7 @@ TVRec::TVRec(int _inputid)
       overRecordSecNrml(0),         overRecordSecCat(0),
       overRecordCategory(""),
       // Configuration variables from setup rutines
-      inputid(_inputid), ispip(false),
+      inputid(_inputid), parentid(0), ispip(false),
       // State variables
       stateChangeLock(QMutex::Recursive),
       pendingRecLock(QMutex::Recursive),
@@ -124,7 +124,6 @@ TVRec::TVRec(int _inputid)
       // RingBuffer info
       ringBuffer(NULL), rbFileExt("ts")
 {
-    QMutexLocker locker(&inputsLock);
     inputs[inputid] = this;
 }
 
@@ -133,9 +132,18 @@ bool TVRec::CreateChannel(const QString &startchannel,
 {
     LOG(VB_CHANNEL, LOG_INFO, LOC + QString("CreateChannel(%1)")
         .arg(startchannel));
+    // If this recorder is a child and its parent is not in error, we
+    // do not need nor want to set the channel.
+    bool setchan = true;
+    if (parentid)
+    {
+        TVRec *parentTV = GetTVRec(parentid);
+        if (parentTV && parentTV->GetState() == kState_Error)
+            setchan = false;
+    }
     channel = ChannelBase::CreateChannel(
         this, genOpt, dvbOpt, fwOpt,
-        startchannel, enter_power_save_mode, rbFileExt);
+        startchannel, enter_power_save_mode, rbFileExt, setchan);
 
     if (genOpt.inputtype == "VBOX")
     {
@@ -166,7 +174,7 @@ bool TVRec::Init(void)
 {
     QMutexLocker lock(&stateChangeLock);
 
-    if (!GetDevices(inputid, genOpt, dvbOpt, fwOpt))
+    if (!GetDevices(inputid, parentid, genOpt, dvbOpt, fwOpt))
         return false;
 
     SetRecordingStatus(RecStatus::Unknown, __LINE__);
@@ -201,7 +209,6 @@ bool TVRec::Init(void)
  */
 TVRec::~TVRec()
 {
-    QMutexLocker locker(&inputsLock);
     inputs.remove(inputid);
 
     if (HasFlags(kFlagRunMainLoop))
@@ -513,15 +520,6 @@ RecStatus::Type TVRec::StartRecording(ProgramInfo *pginfo)
         {
             InputInfo busy_input;
             bool is_busy = RemoteIsBusy(inputids[i], busy_input);
-
-            // if the other recorder is busy, but the input is
-            // not in a shared input group, then as far as we're
-            // concerned here it isn't busy.
-            if (is_busy)
-            {
-                is_busy = (bool) igrp.GetSharedInputGroup(
-                    busy_input.inputid, rcinfo->GetInputID());
-            }
 
             if (is_busy && !sourceid)
             {
@@ -843,6 +841,7 @@ void TVRec::StartedRecording(RecordingInfo *curRec)
  *         is removed.
  *  \sa ProgramInfo::FinishedRecording(bool prematurestop)
  *  \param curRec RecordingInfo or recording to mark as done
+ *  \param recq   Information on the quality if the recording.
  */
 void TVRec::FinishedRecording(RecordingInfo *curRec, RecordingQuality *recq)
 {
@@ -1051,6 +1050,8 @@ void TVRec::HandleStateChange(void)
     {
         scanner->StopActiveScan();
         ClearFlags(kFlagEITScannerRunning, __FILE__, __LINE__);
+        eitScanStartTime = MythDate::current().addSecs(
+            eitCrawlIdleStart + eit_start_rand(eitTransportTimeout));
     }
 
     // Handle different state transitions
@@ -1095,10 +1096,12 @@ void TVRec::HandleStateChange(void)
     if (scanner && (internalState == kState_None))
     {
         eitScanStartTime = eitScanStartTime.addSecs(
-            eitCrawlIdleStart + eit_start_rand(inputid, eitTransportTimeout));
+            eitCrawlIdleStart + eit_start_rand(eitTransportTimeout));
     }
     else
+    {
         eitScanStartTime = eitScanStartTime.addYears(1);
+    }
 }
 #undef TRANSITION
 #undef SET_NEXT
@@ -1274,7 +1277,7 @@ static int num_inputs(void)
     return -1;
 }
 
-static int eit_start_rand(uint inputid, int eitTransportTimeout)
+static int eit_start_rand(int eitTransportTimeout)
 {
     // randomize start time a bit
     int timeout = random() % (eitTransportTimeout / 3);
@@ -1301,10 +1304,12 @@ void TVRec::run(void)
     {
         scanner = new EITScanner(inputid);
         eitScanStartTime = eitScanStartTime.addSecs(
-            eitCrawlIdleStart + eit_start_rand(inputid, eitTransportTimeout));
+            eitCrawlIdleStart + eit_start_rand(eitTransportTimeout));
     }
     else
+    {
         eitScanStartTime = eitScanStartTime.addYears(1);
+    }
 
     while (HasFlags(kFlagRunMainLoop))
     {
@@ -1326,8 +1331,16 @@ void TVRec::run(void)
             return;
         }
 
-        // Handle any tuning events..
-        HandleTuning();
+        // Handle any tuning events..  Blindly grabbing the lock here
+        // can sometimes cause a deadlock with Init() while it waits
+        // to make sure this thread starts.  Until a better solution
+        // is found, don't run HandleTuning unless we can safely get
+        // the lock.
+        if (inputsLock.tryLockForRead())
+        {
+            HandleTuning();
+            inputsLock.unlock();
+        }
 
         // Tell frontends about pending recordings
         HandlePendingRecordings();
@@ -1455,6 +1468,7 @@ void TVRec::run(void)
                 // Check if another card in the same input group is
                 // busy.  This could be either virtual DVB-devices or
                 // a second tuner on a single card
+                inputsLock.lockForRead();
                 bool allow_eit = true;
                 vector<uint> inputids =
                     CardUtil::GetConflictingInputs(inputid);
@@ -1476,6 +1490,7 @@ void TVRec::run(void)
                         .arg(inputid).arg(busy_input.inputid));
                     eitScanStartTime = eitScanStartTime.addSecs(300);
                 }
+                inputsLock.unlock();
             }
         }
 
@@ -1567,13 +1582,6 @@ void TVRec::HandlePendingRecordings(void)
 {
     QMutexLocker pendlock(&pendingRecLock);
 
-    if (pendingRecordings.empty())
-        return;
-
-    // If we have a pending recording and AskAllowRecording
-    // or DoNotAskAllowRecording is set and the frontend is
-    // ready send an ASK_RECORDING query to frontend.
-
     PendingMap::iterator it, next;
 
     for (it = pendingRecordings.begin(); it != pendingRecordings.end();)
@@ -1591,6 +1599,21 @@ void TVRec::HandlePendingRecordings(void)
         }
         it = next;
     }
+
+    if (pendingRecordings.empty())
+        return;
+
+    // Make sure EIT scan is stopped so it does't interfere
+    if (scanner && HasFlags(kFlagEITScannerRunning))
+    {
+        LOG(VB_CHANNEL, LOG_INFO,
+            LOC + "Stopping active EIT scan for pending recording.");
+        tuningRequests.enqueue(TuningRequest(kFlagNoRec));
+    }
+
+    // If we have a pending recording and AskAllowRecording
+    // or DoNotAskAllowRecording is set and the frontend is
+    // ready send an ASK_RECORDING query to frontend.
 
     bool has_rec = false;
     it = pendingRecordings.begin();
@@ -1634,6 +1657,7 @@ void TVRec::HandlePendingRecordings(void)
 }
 
 bool TVRec::GetDevices(uint inputid,
+                       uint &parentid,
                        GeneralDBOptions   &gen_opts,
                        DVBDBOptions       &dvb_opts,
                        FireWireDBOptions  &firewire_opts)
@@ -1650,7 +1674,8 @@ bool TVRec::GetDevices(uint inputid,
         ""
         "       dvb_on_demand,    dvb_tuning_delay,    dvb_eitscan,"
         ""
-        "       firewire_speed,   firewire_model,      firewire_connection "
+        "       firewire_speed,   firewire_model,      firewire_connection, "
+        "       parentid "
         ""
         "FROM capturecard "
         "WHERE cardid = :INPUTID");
@@ -1667,21 +1692,21 @@ bool TVRec::GetDevices(uint inputid,
 
     // General options
     test = query.value(0).toString();
-    if (test != QString::null)
+    if (!test.isEmpty())
         gen_opts.videodev = test;
 
     test = query.value(1).toString();
-    if (test != QString::null)
+    if (!test.isEmpty())
         gen_opts.vbidev = test;
 
     test = query.value(2).toString();
-    if (test != QString::null)
+    if (!test.isEmpty())
         gen_opts.audiodev = test;
 
     gen_opts.audiosamplerate = max(testnum, query.value(3).toInt());
 
     test = query.value(4).toString();
-    if (test != QString::null)
+    if (!test.isEmpty())
         gen_opts.inputtype = test;
 
     gen_opts.skip_btaudio = query.value(5).toUInt();
@@ -1708,17 +1733,19 @@ bool TVRec::GetDevices(uint inputid,
     firewire_opts.speed       = query.value(fireoff + 0).toUInt();
 
     test = query.value(fireoff + 1).toString();
-    if (test != QString::null)
+    if (!test.isEmpty())
         firewire_opts.model = test;
 
     firewire_opts.connection  = query.value(fireoff + 2).toUInt();
+
+    parentid = query.value(15).toUInt();
 
     return true;
 }
 
 QString TVRec::GetStartChannel(uint inputid)
 {
-    QString startchan = QString::null;
+    QString startchan;
 
     LOG(VB_RECORD, LOG_INFO, LOC + QString("GetStartChannel(%1)")
         .arg(inputid));
@@ -2019,7 +2046,7 @@ bool TVRec::SetupDTVSignalMonitor(bool EITscan)
     return ok;
 }
 
-/** \fn TVRec::SetupSignalMonitor(bool,bool)
+/**
  *  \brief This creates a SignalMonitor instance and
  *         begins signal monitoring.
  *
@@ -2028,6 +2055,8 @@ bool TVRec::SetupDTVSignalMonitor(bool EITscan)
  *   is called to start the signal monitoring thread.
  *
  *  \param tablemon If set we enable table monitoring
+ *  \param EITscan if set we never look for video streams and we
+ *         lock on encrypted streams even if we can't decode them.
  *  \param notify   If set we notify the frontend of the signal values
  *  \return true on success, false on failure
  */
@@ -2052,7 +2081,8 @@ bool TVRec::SetupSignalMonitor(bool tablemon, bool EITscan, bool notify)
     SignalMonitorValue::Init();
 
     if (SignalMonitor::IsSupported(genOpt.inputtype) && channel->Open())
-        signalMonitor = SignalMonitor::Init(genOpt.inputtype, inputid, channel);
+        signalMonitor = SignalMonitor::Init(genOpt.inputtype, inputid,
+                                            channel, false);
 
     if (signalMonitor)
     {
@@ -2517,7 +2547,7 @@ bool TVRec::IsBusy(InputInfo *busy_input, int time_buffer) const
 
         if (timeLeft <= time_buffer)
         {
-            QString channum = QString::null, input = QString::null;
+            QString channum, input;
             if (pendinfo.info->QueryTuningInfo(channum, input))
             {
                 busy_input->inputid = channel->GetInputID();
@@ -2962,7 +2992,6 @@ void TVRec::ToggleChannelFavorite(QString changroupname)
     }
 
     int  changrpid;
-    bool result;
 
     changrpid = ChannelGroup::GetChannelGroupId(changroupname);
 
@@ -2974,7 +3003,7 @@ void TVRec::ToggleChannelFavorite(QString changroupname)
     }
     else
     {
-        result = ChannelGroup::ToggleChannel(chanid, changrpid, true);
+        bool result = ChannelGroup::ToggleChannel(chanid, changrpid, true);
 
         if (!result)
            LOG(VB_RECORD, LOG_ERR, LOC + "Unable to toggle channel favorite.");
@@ -3028,7 +3057,7 @@ QString TVRec::GetInput(void) const
 {
     if (channel)
         return channel->GetInputName();
-    return QString::null;
+    return QString();
 }
 
 /** \fn TVRec::GetSourceID(void) const
@@ -3041,7 +3070,7 @@ uint TVRec::GetSourceID(void) const
     return 0;
 }
 
-/** \fn TVRec::SetInput(QString, uint)
+/**
  *  \brief Changes to the specified input.
  *
  *   You must call PauseRecorder(void) before calling this.
@@ -3049,7 +3078,7 @@ uint TVRec::GetSourceID(void) const
  *  \param input Input to switch to, or "SwitchToNextInput".
  *  \return input we have switched to
  */
-QString TVRec::SetInput(QString input, uint requestType)
+QString TVRec::SetInput(QString input)
 {
     QMutexLocker lock(&stateChangeLock);
     QString origIn = input;
@@ -3058,7 +3087,7 @@ QString TVRec::SetInput(QString input, uint requestType)
     if (!channel)
     {
         LOG(VB_RECORD, LOG_INFO, LOC + "SetInput() -- end  no channel class");
-        return QString::null;
+        return QString();
     }
 
     LOG(VB_RECORD, LOG_INFO, LOC + "SetInput(" + origIn + ":" + input +
@@ -3395,7 +3424,7 @@ void TVRec::RingBufferChanged(
 QString TVRec::TuningGetChanNum(const TuningRequest &request,
                                 QString &input) const
 {
-    QString channum = QString::null;
+    QString channum;
 
     if (request.program)
     {
@@ -3550,48 +3579,6 @@ void TVRec::HandleTuning(void)
     }
 }
 
-/** \fn TVRec::TuningCheckForHWChange(const TuningRequest&,QString&,QString&)
- *  \brief Returns inputid for device info row in capturecard if it changes.
- */
-uint TVRec::TuningCheckForHWChange(const TuningRequest &request,
-                                   QString &channum,
-                                   QString &inputname)
-{
-     LOG(VB_RECORD, LOG_INFO, LOC + QString("request (%1) channum (%2) inputname (%3)")
-                                            .arg(request.toString()).arg(channum).arg(inputname));
-    if (!channel)
-        return 0;
-
-    uint curInputID = 0, newInputID = 0;
-    channum   = request.channel;
-    inputname = request.input;
-
-    if (request.program)
-        request.program->QueryTuningInfo(channum, inputname);
-
-    if (!channum.isEmpty() && inputname.isEmpty())
-        channel->CheckChannel(channum);
-
-    if (!inputname.isEmpty())
-    {
-        curInputID = channel->GetInputID();
-        newInputID = channel->GetInputID();
-        LOG(VB_GENERAL, LOG_INFO, LOC + QString("HW Tuner: %1->%2")
-                .arg(curInputID).arg(newInputID));
-    }
-
-    if (curInputID != newInputID || !CardUtil::IsChannelReusable(genOpt.inputtype))
-    {
-        LOG(VB_RECORD, LOG_INFO, LOC + QString("Inputtype HW Tuner newinputid channum curinputid: %1->%2 %3")
-                                               .arg(curInputID).arg(newInputID).arg(channum));
-        if (channum.isEmpty())
-            channum = GetStartChannel(newInputID);
-        return newInputID;
-    }
-
-    return 0;
-}
-
 /** \fn TVRec::TuningShutdowns(const TuningRequest&)
  *  \brief This shuts down anything that needs to be shut down
  *         before handling the passed in tuning request.
@@ -3602,13 +3589,14 @@ void TVRec::TuningShutdowns(const TuningRequest &request)
         .arg(request.toString()));
 
     QString channum, inputname;
-    uint newInputID = TuningCheckForHWChange(request, channum, inputname);
 
     if (scanner && !(request.flags & kFlagEITScan) &&
         HasFlags(kFlagEITScannerRunning))
     {
         scanner->StopActiveScan();
         ClearFlags(kFlagEITScannerRunning, __FILE__, __LINE__);
+        eitScanStartTime = MythDate::current().addSecs(
+            eitCrawlIdleStart + eit_start_rand(eitTransportTimeout));
     }
 
     if (scanner && !request.IsOnSameMultiplex())
@@ -3634,7 +3622,7 @@ void TVRec::TuningShutdowns(const TuningRequest &request)
 
     // At this point any waits are canceled.
 
-    if (newInputID || (request.flags & kFlagNoRec))
+    if (request.flags & kFlagNoRec)
     {
         if (HasFlags(kFlagDummyRecorderRunning))
         {
@@ -3656,19 +3644,6 @@ void TVRec::TuningShutdowns(const TuningRequest &request)
 
         CloseChannel();
         // At this point the channel is shut down
-    }
-
-    // handle HW change for digital/analog inputs
-    if (newInputID)
-    {
-        LOG(VB_CHANNEL, LOG_INFO, LOC +
-            "TuningShutdowns: Recreating channel...");
-        channel->Close();
-        delete channel;
-        channel = NULL;
-
-        GetDevices(newInputID, genOpt, dvbOpt, fwOpt);
-        CreateChannel(channum, false);
     }
 
     if (ringBuffer && (request.flags & kFlagKillRingBuffer))
@@ -3793,9 +3768,19 @@ void TVRec::TuningFrequency(const TuningRequest &request)
         }
     }
 
+
+    bool mpts_only = GetDTVChannel() &&
+                     GetDTVChannel()->GetFormat().compare("MPTS") == 0;
+    if (mpts_only)
+    {
+        // Not using a signal monitor, so just set the status to recording
+        SetRecordingStatus(RecStatus::Recording, __LINE__);
+    }
+
+
     bool livetv = request.flags & kFlagLiveTV;
     bool antadj = request.flags & kFlagAntennaAdjust;
-    bool use_sm = SignalMonitor::IsRequired(genOpt.inputtype);
+    bool use_sm = !mpts_only && SignalMonitor::IsRequired(genOpt.inputtype);
     bool use_dr = use_sm && (livetv || antadj);
     bool has_dummy = false;
 
@@ -3992,11 +3977,7 @@ MPEGStreamData *TVRec::TuningSignalCheck(void)
 
         if (scanner && HasFlags(kFlagEITScannerRunning))
         {
-            scanner->StopActiveScan();
-            ClearFlags(kFlagEITScannerRunning, __FILE__, __LINE__);
-            eitScanStartTime = current_time;
-            eitScanStartTime = eitScanStartTime.addSecs(eitCrawlIdleStart +
-                                  eit_start_rand(inputid, eitTransportTimeout));
+            tuningRequests.enqueue(TuningRequest(kFlagNoRec));
         }
     }
     else if (curRecording && !reachedPreFail && current_time > preFailDeadline)
@@ -4277,8 +4258,7 @@ void TVRec::TuningNewRecorder(MPEGStreamData *streamData)
         channel->Close(); // Needed because of NVR::MJPEGInit()
 
     LOG(VB_GENERAL, LOG_INFO, LOC + "TuningNewRecorder - CreateRecorder()");
-    recorder = RecorderBase::CreateRecorder(
-        this, channel, profile, genOpt, dvbOpt);
+    recorder = RecorderBase::CreateRecorder(this, channel, profile, genOpt);
 
     if (recorder)
     {
@@ -4351,6 +4331,16 @@ void TVRec::TuningNewRecorder(MPEGStreamData *streamData)
     SetFlags(kFlagRecorderRunning | kFlagRingBufferReady, __FILE__, __LINE__);
 
     ClearFlags(kFlagNeedToStartRecorder, __FILE__, __LINE__);
+
+    //workaround for failed import recordings, no signal monitor means we never
+    //go to recording state and the status here seems to override the status
+    //set in the importrecorder and backend via setrecordingstatus
+    if (genOpt.inputtype == "IMPORT")
+    {
+        SetRecordingStatus(RecStatus::Recording, __LINE__);
+        if (curRecording)
+            curRecording->SetRecordingStatus(RecStatus::Recording);
+    }
     return;
 
   err_ret:
@@ -4567,8 +4557,7 @@ void TVRec::SetNextLiveTVDir(QString dir)
 
 bool TVRec::GetProgramRingBufferForLiveTV(RecordingInfo **pginfo,
                                           RingBuffer **rb,
-                                          const QString & channum,
-                                          int inputID)
+                                          const QString & channum)
 {
     LOG(VB_RECORD, LOG_INFO, LOC + "GetProgramRingBufferForLiveTV()");
     if (!channel || !tvchain || !pginfo || !rb)
@@ -4649,7 +4638,7 @@ bool TVRec::GetProgramRingBufferForLiveTV(RecordingInfo **pginfo,
     StartedRecording(prog);
 
     *rb = RingBuffer::Create(prog->GetPathname(), true);
-    if (!(*rb)->IsOpen())
+    if (!(*rb) || !(*rb)->IsOpen())
     {
         LOG(VB_GENERAL, LOG_ERR, LOC + QString("RingBuffer '%1' not open...")
                 .arg(prog->GetPathname()));
@@ -4672,7 +4661,6 @@ bool TVRec::CreateLiveTVRingBuffer(const QString & channum)
     RecordingInfo *pginfo = NULL;
     RingBuffer    *rb = NULL;
     QString        inputName;
-    int            inputID = -1;
 
     if (!channel ||
         !channel->CheckChannel(channum))
@@ -4681,9 +4669,7 @@ bool TVRec::CreateLiveTVRingBuffer(const QString & channum)
         return false;
     }
 
-    inputID = channel->GetInputID();
-
-    if (!GetProgramRingBufferForLiveTV(&pginfo, &rb, channum, inputID))
+    if (!GetProgramRingBufferForLiveTV(&pginfo, &rb, channum))
     {
         ClearFlags(kFlagPendingActions, __FILE__, __LINE__);
         ChangeState(kState_None);
@@ -4731,7 +4717,6 @@ bool TVRec::SwitchLiveTVRingBuffer(const QString & channum,
     RecordingInfo *pginfo = NULL;
     RingBuffer    *rb = NULL;
     QString        inputName;
-    int            inputID = -1;
 
     if (!channel ||
         !channel->CheckChannel(channum))
@@ -4740,9 +4725,7 @@ bool TVRec::SwitchLiveTVRingBuffer(const QString & channum,
         return false;
     }
 
-    inputID = channel->GetInputID();
-
-    if (!GetProgramRingBufferForLiveTV(&pginfo, &rb, channum, inputID))
+    if (!GetProgramRingBufferForLiveTV(&pginfo, &rb, channum))
     {
         ChangeState(kState_None);
         return false;
@@ -4839,7 +4822,7 @@ RecordingInfo *TVRec::SwitchRecordingRingBuffer(const RecordingInfo &rcinfo)
 
     bool write = genOpt.inputtype != "IMPORT";
     RingBuffer *rb = RingBuffer::Create(ri->GetPathname(), write);
-    if (!rb->IsOpen())
+    if (!rb || !rb->IsOpen())
     {
         delete rb;
         ri->SetRecordingStatus(RecStatus::Failed);
@@ -4864,7 +4847,6 @@ RecordingInfo *TVRec::SwitchRecordingRingBuffer(const RecordingInfo &rcinfo)
 
 TVRec* TVRec::GetTVRec(uint inputid)
 {
-    QMutexLocker locker(&inputsLock);
     QMap<uint,TVRec*>::const_iterator it = inputs.find(inputid);
     if (it == inputs.end())
         return NULL;

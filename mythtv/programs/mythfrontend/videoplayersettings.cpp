@@ -25,11 +25,8 @@ PlayerSettings::PlayerSettings(MythScreenStack *parent, const char *name)
 
 bool PlayerSettings::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("video-ui.xml", "playersettings", this);
-
+    bool foundtheme = LoadWindowFromXML("video-ui.xml", "playersettings", this);
     if (!foundtheme)
         return false;
 
@@ -147,12 +144,7 @@ bool PlayerSettings::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
-
-    if (!handled && MythScreenType::keyPressEvent(event))
-        handled = true;
-
-    return handled;
+    return MythScreenType::keyPressEvent(event);
 }
 
 void PlayerSettings::toggleAlt()

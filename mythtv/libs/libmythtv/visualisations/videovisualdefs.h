@@ -33,34 +33,30 @@ class LogScale
             delete [] indices;
 
         double alpha;
-        int i, scaled;
         long double domain = (long double) maxscale;
         long double range  = (long double) maxrange;
         long double x  = 1.0;
         long double dx = 1.0;
-        long double y  = 0.0;
-        long double yy = 0.0;
-        long double t  = 0.0;
         long double e4 = 1.0E-8;
 
         indices = new int[maxrange];
-        for (i = 0; i < maxrange; i++)
+        for (int i = 0; i < maxrange; i++)
             indices[i] = 0;
 
         // initialize log scale
         for (uint i = 0; i < 10000 && (std::abs(dx) > e4); i++)
         {
-            t = std::log((domain + x) / x);
-            y = (x * t) - range;
-            yy = t - (domain / (x + domain));
+            long double t = std::log((domain + x) / x);
+            long double y = (x * t) - range;
+            long double yy = t - (domain / (x + domain));
             dx = y / yy;
             x -= dx;
         }
 
         alpha = x;
-        for (i = 1; i < (int) domain; i++)
+        for (int i = 1; i < (int) domain; i++)
         {
-            scaled = (int) floor(0.5 + (alpha * log((double(i) + alpha) / alpha)));
+            int scaled = (int) floor(0.5 + (alpha * log((double(i) + alpha) / alpha)));
             if (scaled < 1)
                 scaled = 1;
             if (indices[scaled - 1] < i)
@@ -79,9 +75,9 @@ class LogScale
     int s, r;
 };
 
-static inline void stereo16_from_stereopcm8(register short *l,
-                        register short *r,
-                        register uchar *c,
+static inline void stereo16_from_stereopcm8(short *l,
+                        short *r,
+                        uchar *c,
                         long cnt)
 {
     while (cnt >= 4l)
@@ -117,9 +113,9 @@ static inline void stereo16_from_stereopcm8(register short *l,
     }
 }
 
-static inline void stereo16_from_stereopcm16(register short *l,
-                         register short *r,
-                         register short *s,
+static inline void stereo16_from_stereopcm16(short *l,
+                         short *r,
+                         short *s,
                          long cnt)
 {
     while (cnt >= 4l)
@@ -155,8 +151,8 @@ static inline void stereo16_from_stereopcm16(register short *l,
     }
 }
 
-static inline void mono16_from_monopcm8(register short *l,
-                    register uchar *c,
+static inline void mono16_from_monopcm8(short *l,
+                    uchar *c,
                     long cnt)
 {
     while (cnt >= 4l)
@@ -184,8 +180,8 @@ static inline void mono16_from_monopcm8(register short *l,
     }
 }
 
-static inline void mono16_from_monopcm16(register short *l,
-                     register short *s,
+static inline void mono16_from_monopcm16(short *l,
+                     short *s,
                      long cnt)
 {
     while (cnt >= 4l)
@@ -228,7 +224,7 @@ extern "C" {
 #endif
 }
 
-static inline void fast_short_set(register short *p,
+static inline void fast_short_set(short *p,
                   short v,
                   long c)
 {
@@ -252,8 +248,8 @@ static inline void fast_short_set(register short *p,
     }
 }
 
-static inline void fast_real_set_from_short(register fftw_real *d,
-                        register short *s,
+static inline void fast_real_set_from_short(fftw_real *d,
+                        short *s,
                         long c)
 {
     while (c >= 4l) {
@@ -277,8 +273,8 @@ static inline void fast_real_set_from_short(register fftw_real *d,
     }
 }
 
-static inline void fast_reals_set(register fftw_real *p1,
-                  register fftw_real *p2,
+static inline void fast_reals_set(fftw_real *p1,
+                  fftw_real *p2,
                   fftw_real v,
                   long c)
 {

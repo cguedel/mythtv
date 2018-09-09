@@ -204,7 +204,10 @@ bool RecordingRule::LoadByProgram(const ProgramInfo* proginfo)
 
     m_recordID = proginfo->GetRecordingRuleID();
     if (m_recordID)
-        Load();
+    {
+        if (!Load())
+            return false;
+    }
     else
         LoadTemplate(proginfo->GetCategory(), proginfo->GetCategoryTypeString());
 
@@ -581,17 +584,6 @@ void RecordingRule::ToMap(InfoMap &infoMap) const
     hours   = minutes / 60;
     minutes = minutes % 60;
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-
-    infoMap["lenmins"] = QCoreApplication::translate("(Common)", "%n minute(s)",
-        "", QCoreApplication::UnicodeUTF8, minutes);
-
-    QString minstring  = QCoreApplication::translate("(Common)", "%n minute(s)",
-        "",QCoreApplication::UnicodeUTF8, minutes);
-
-    QString hourstring = QCoreApplication::translate("(Common)", "%n hour(s)",
-        "", QCoreApplication::UnicodeUTF8, hours);
-#else
     infoMap["lenmins"] = QCoreApplication::translate("(Common)", "%n minute(s)",
         "", minutes);
 
@@ -600,8 +592,6 @@ void RecordingRule::ToMap(InfoMap &infoMap) const
 
     QString hourstring = QCoreApplication::translate("(Common)", "%n hour(s)",
         "", hours);
-
-#endif
 
     if (hours > 0)
     {
@@ -631,8 +621,9 @@ void RecordingRule::ToMap(InfoMap &infoMap) const
         if (m_type == kWeeklyRecord)
         {
             int daynum = (m_findday + 5) % 7 + 1;
-            findfrom = QString("%1, %2").arg(QDate::shortDayName(daynum))
-                                        .arg(findfrom);
+            findfrom = QString("%1, %2")
+		 .arg(gCoreContext->GetQLocale().dayName(daynum, QLocale::ShortFormat))
+		 .arg(findfrom);
         }
         infoMap["subtitle"] = tr("(%1 or later) %3",
                                  "e.g. (Sunday or later) program "
@@ -985,7 +976,8 @@ bool RecordingRule::IsValid(QString &msg)
         return false;
     }
 
-    if (m_filter & (~0 << kNumFilters))
+    unsigned valid_mask = (1 << kNumFilters) - 1;
+    if ((m_filter & valid_mask) != m_filter)
     {
         msg = QString("Invalid filter value.");
         return false;

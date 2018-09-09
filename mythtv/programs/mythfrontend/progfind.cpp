@@ -177,10 +177,8 @@ bool ProgFinder::keyPressEvent(QKeyEvent *event)
         return true;
     }
 
-    bool handled = false;
-
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("TV Frontend", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; ++i)
     {
@@ -260,7 +258,7 @@ void ProgFinder::customEvent(QEvent *event)
 {
     if ((MythEvent::Type)(event->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QString message = me->Message();
 
         if (message == "SCHEDULE_CHANGE")

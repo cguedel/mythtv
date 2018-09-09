@@ -26,11 +26,8 @@ MetadataSettings::MetadataSettings(MythScreenStack *parent, const char *name)
 
 bool MetadataSettings::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("video-ui.xml", "metadatasettings", this);
-
+    bool foundtheme = LoadWindowFromXML("video-ui.xml", "metadatasettings", this);
     if (!foundtheme)
         return false;
 
@@ -156,12 +153,7 @@ bool MetadataSettings::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
-
-    if (!handled && MythScreenType::keyPressEvent(event))
-        handled = true;
-
-    return handled;
+    return MythScreenType::keyPressEvent(event);
 }
 
 void MetadataSettings::toggleTrailers()

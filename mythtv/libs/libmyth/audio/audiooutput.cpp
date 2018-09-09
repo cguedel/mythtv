@@ -154,6 +154,9 @@ AudioOutput *AudioOutput::OpenAudio(AudioSettings &settings,
             pulsestatus = PulseHandler::Suspend(PulseHandler::kPulseSuspend);
         }
     }
+#else // USING_PULSE
+    // Quiet warning error when not compiling with pulseaudio
+    Q_UNUSED(willsuspendpa);
 #endif
 
     if (main_device.startsWith("ALSA:"))
@@ -296,12 +299,12 @@ void AudioOutput::Warn(const QString &msg)
 
 void AudioOutput::ClearError(void)
 {
-    lastError = QString::null;
+    lastError.clear();
 }
 
 void AudioOutput::ClearWarning(void)
 {
-    lastWarn = QString::null;
+    lastWarn.clear();
 }
 
 AudioOutput::AudioDeviceConfig* AudioOutput::GetAudioDeviceConfig(
@@ -310,7 +313,7 @@ AudioOutput::AudioDeviceConfig* AudioOutput::GetAudioDeviceConfig(
     AudioOutputSettings aosettings(true);
     AudioOutput::AudioDeviceConfig *adc;
 
-    AudioOutput *ao = OpenAudio(name, QString::null, willsuspendpa);
+    AudioOutput *ao = OpenAudio(name, QString(), willsuspendpa);
     if (ao)
     {
         aosettings = *(ao->GetOutputSettingsCleaned());
@@ -375,6 +378,7 @@ AudioOutput::AudioDeviceConfig* AudioOutput::GetAudioDeviceConfig(
                 (aosettings.canLPCM() << 0) |
                 (aosettings.canAC3()  << 1) |
                 (aosettings.canDTS()  << 2);
+            // cppcheck-suppress variableScope
             static const char *type_names[] = { "LPCM", "AC3", "DTS" };
 
             if (mask != 0)
@@ -621,7 +625,7 @@ int AudioOutput::DecodeAudio(AVCodecContext *ctx,
                              uint8_t *buffer, int &data_size,
                              const AVPacket *pkt)
 {
-    int got_frame = 0;
+    bool got_frame = false;
     int ret;
     char error[AV_ERROR_MAX_STRING_SIZE];
 
@@ -638,8 +642,22 @@ int AudioOutput::DecodeAudio(AVCodecContext *ctx,
         av_frame_unref(_frame);
     }
 
-    ret = avcodec_decode_audio4(ctx, _frame, &got_frame, pkt);
-    if (ret < 0)
+//  SUGGESTION
+//  Now that avcodec_decode_audio4 is deprecated and replaced
+//  by 2 calls (receive frame and send packet), this could be optimized
+//  into separate routines or separate threads.
+//  Also now that it always consumes a whole buffer some code
+//  in the caller may be able to be optimized.
+    ret = avcodec_receive_frame(ctx,_frame);
+    if (ret == 0)
+        got_frame = true;
+    if (ret == AVERROR(EAGAIN))
+        ret = 0;
+    if (ret == 0)
+        ret = avcodec_send_packet(ctx, pkt);
+    if (ret == AVERROR(EAGAIN))
+        ret = 0;
+    else if (ret < 0)
     {
         LOG(VB_AUDIO, LOG_ERR, LOC +
             QString("audio decode error: %1 (%2)")
@@ -647,6 +665,8 @@ int AudioOutput::DecodeAudio(AVCodecContext *ctx,
             .arg(got_frame));
         return ret;
     }
+    else
+        ret = pkt->size;
 
     if (!got_frame)
     {

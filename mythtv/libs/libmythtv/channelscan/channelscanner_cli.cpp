@@ -64,7 +64,7 @@ void ChannelScannerCLI::HandleEvent(const ScannerEvent *scanEvent)
         if (sigmonScanner)
         {
             sigmonScanner->StopScanner();
-            transports = sigmonScanner->GetChannelList();
+            transports = sigmonScanner->GetChannelList(addFullTS);
         }
 
         Teardown();
@@ -149,8 +149,11 @@ void ChannelScannerCLI::Process(const ScanDTVTransportList &_transports)
     ci.Process(_transports);
 }
 
+/*
+ * The parameters are required by the parent class.
+ */
 void ChannelScannerCLI::MonitorProgress(
-    bool lock, bool strength, bool snr, bool rotor)
+    bool /*lock*/, bool /*strength*/, bool /*snr*/, bool /*rotor*/)
 {
     if (VERBOSE_LEVEL_NONE)
         cout<<"\r0%"<<flush;

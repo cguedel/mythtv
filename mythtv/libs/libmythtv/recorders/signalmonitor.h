@@ -31,14 +31,15 @@ class TVRec;
 
 class SignalMonitor : protected MThread
 {
-    Q_DECLARE_TR_FUNCTIONS(SignalMonitor)
+    Q_DECLARE_TR_FUNCTIONS(SignalMonitor);
 
   public:
     /// Returns true iff the card type supports signal monitoring.
     static inline bool IsRequired(const QString &cardtype);
     static inline bool IsSupported(const QString &cardtype);
     static SignalMonitor *Init(QString cardtype, int db_cardnum,
-                               ChannelBase *channel);
+                               ChannelBase *channel,
+                               bool release_stream);
     virtual ~SignalMonitor();
 
     // // // // // // // // // // // // // // // // // // // // // // // //
@@ -89,6 +90,8 @@ class SignalMonitor : protected MThread
     void SetNotifyFrontend(bool notify) { notify_frontend = notify; }
 
     /** \brief Indicate if table monitoring is needed
+     *  \param parent The TVRec* that this signal monitor is attached to.
+     *  \param EITscan Unused
      *  \param monitor if true parent->SetupDTVSignalMonitor is called
      *         after the channel is tuned.
      */
@@ -114,8 +117,8 @@ class SignalMonitor : protected MThread
     virtual void EmitStatus(void);
 
   protected:
-    SignalMonitor(int db_cardnum, ChannelBase *_channel,
-                  uint64_t wait_for_mask);
+    SignalMonitor(int _capturecardnum, ChannelBase *_channel,
+                  uint64_t wait_for_mask, bool _release_stream);
 
     virtual void run(void);
 
@@ -197,6 +200,7 @@ class SignalMonitor : protected MThread
     TVRec       *pParent;
     int          capturecardnum;
     volatile uint64_t flags;
+    bool         release_stream;
     int          update_rate;
     uint         minimum_update_rate;
     bool         update_done;

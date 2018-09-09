@@ -173,11 +173,8 @@ IconView::~IconView()
 
 bool IconView::Create(void)
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("gallery-ui.xml", "gallery", this);
-
+    bool foundtheme = LoadWindowFromXML("gallery-ui.xml", "gallery", this);
     if (!foundtheme)
         return false;
 
@@ -262,10 +259,9 @@ void IconView::LoadDirectory(const QString &dir)
     if (m_thumbGen && !m_thumbGen->isRunning())
         m_thumbGen->start();
 
-    ThumbItem *thumbitem;
     for (int x = 0; x < m_itemList.size(); x++)
     {
-        thumbitem = m_itemList.at(x);
+        ThumbItem *thumbitem = m_itemList.at(x);
 
         thumbitem->InitCaption(m_showcaption);
         MythUIButtonListItem* item =
@@ -445,9 +441,8 @@ bool IconView::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Gallery", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Gallery", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {
@@ -1292,10 +1287,9 @@ void IconView::HandleShowDevices(void)
         }
     }
 
-    ThumbItem *thumbitem;
     for (int x = 0; x < m_itemList.size(); x++)
     {
-        thumbitem = m_itemList.at(x);
+        ThumbItem *thumbitem = m_itemList.at(x);
 
         thumbitem->InitCaption(m_showcaption);
         MythUIButtonListItem* item =
@@ -1380,10 +1374,9 @@ void IconView::HandleClearMarked(void)
 
 void IconView::HandleSelectAll(void)
 {
-    ThumbItem *item;
     for (int x = 0; x < m_itemList.size(); x++)
     {
-        item = m_itemList.at(x);
+        ThumbItem *item = m_itemList.at(x);
 
         if (!m_itemMarked.contains(item->GetPath()))
             m_itemMarked.append(item->GetPath());
@@ -1489,11 +1482,10 @@ void IconView::ImportFromDir(const QString &fromDir, const QString &toDir)
                 QDir::NoDotAndDotDot);
     QFileInfoList list = d.entryInfoList();
     QFileInfoList::const_iterator it = list.begin();
-    const QFileInfo *fi;
 
     while (it != list.end())
     {
-        fi = &(*it);
+        const QFileInfo *fi = &(*it);
         ++it;
 
         if (fi->isDir())
@@ -1669,12 +1661,11 @@ int ChildCountThread::getChildCount(const QString &filepath)
         return 0;
 
     QFileInfoList::const_iterator it = list.begin();
-    const QFileInfo *fi;
 
     int count = 0;
     while (it != list.end())
     {
-        fi = &(*it);
+        const QFileInfo *fi = &(*it);
         ++it;
 
         // remove these already-resized pictures.

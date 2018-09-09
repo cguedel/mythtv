@@ -19,7 +19,7 @@ class PlaybackSettingsDialog : public StandardSettingDialog
     Q_OBJECT
 
   public:
-    PlaybackSettingsDialog(MythScreenStack *stack);
+    explicit PlaybackSettingsDialog(MythScreenStack *stack);
     void ShowMenu(void);
 
   protected slots:
@@ -51,8 +51,10 @@ class VideoModeSettings : public HostCheckBoxSetting
     Q_OBJECT
 
   public:
-    VideoModeSettings(const char *c);
+    explicit VideoModeSettings(const char *c);
+#if defined(USING_XRANDR) || CONFIG_DARWIN
     virtual void updateButton(MythUIButtonListItem *item);
+#endif
 };
 
 class LcdSettings
@@ -109,7 +111,7 @@ class MacDesktopSettings : public GroupSetting
 
 class OSDSettings: public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(OSDSettings)
+    Q_DECLARE_TR_FUNCTIONS(OSDSettings);
 
   public:
     OSDSettings();
@@ -117,7 +119,7 @@ class OSDSettings: public GroupSetting
 
 class GeneralSettings : public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(GeneralSettings)
+    Q_DECLARE_TR_FUNCTIONS(GeneralSettings);
 
   public:
     GeneralSettings();
@@ -125,7 +127,7 @@ class GeneralSettings : public GroupSetting
 
 class EPGSettings : public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(EPGSettings)
+    Q_DECLARE_TR_FUNCTIONS(EPGSettings);
 
   public:
     EPGSettings();
@@ -133,7 +135,7 @@ class EPGSettings : public GroupSetting
 
 class AppearanceSettings : public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(AppearanceSettings)
+    Q_DECLARE_TR_FUNCTIONS(AppearanceSettings);
 
   public:
     AppearanceSettings();
@@ -145,12 +147,14 @@ class HostRefreshRateComboBoxSetting : public HostComboBoxSetting
     Q_OBJECT
 
   public:
-    HostRefreshRateComboBoxSetting(const QString &name) :
+    explicit HostRefreshRateComboBoxSetting(const QString &name) :
         HostComboBoxSetting(name) { }
     virtual ~HostRefreshRateComboBoxSetting() { }
 
   public slots:
+#if defined(USING_XRANDR) || CONFIG_DARWIN
     virtual void ChangeResolution(StandardSetting *);
+#endif
 
   private:
     static const vector<double> GetRefreshRates(const QString &resolution);
@@ -158,7 +162,7 @@ class HostRefreshRateComboBoxSetting : public HostComboBoxSetting
 
 class MainGeneralSettings : public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(MainGeneralSettings)
+    Q_DECLARE_TR_FUNCTIONS(MainGeneralSettings);
 
   public:
     MainGeneralSettings();
@@ -167,7 +171,7 @@ class MainGeneralSettings : public GroupSetting
 
 class GeneralRecPrioritiesSettings : public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(GeneralRecPrioritiesSettings)
+    Q_DECLARE_TR_FUNCTIONS(GeneralRecPrioritiesSettings);
 
   public:
     GeneralRecPrioritiesSettings();
@@ -192,6 +196,8 @@ class PlaybackProfileItemConfig : public GroupSetting
     void IncreasePriority(void);
 
   private slots:
+    void widthChanged(const QString &dec);
+    void heightChanged(const QString &dec);
     void framerateChanged(const QString &dec);
     void decoderChanged(const QString &dec);
     void vrenderChanged(const QString &renderer);
@@ -203,9 +209,6 @@ class PlaybackProfileItemConfig : public GroupSetting
 
   private:
     ProfileItem          &item;
-    TransMythUIComboBoxSetting *cmp[2];
-    TransMythUISpinBoxSetting  *width[2];
-    TransMythUISpinBoxSetting  *height[2];
     TransTextEditSetting      *width_range;
     TransTextEditSetting      *height_range;
     MythUIComboBoxSetting      *codecs;
@@ -262,15 +265,13 @@ class ChannelGroupSetting : public GroupSetting
   public:
     ChannelGroupSetting(const QString &groupName, int groupId);
     virtual void Load();
-    virtual void Close();
+    virtual void Save();
     virtual bool canDelete(void);
     virtual void deleteEntry(void);
 
   private:
     int m_groupId;
     TransTextEditSetting       *m_groupName;
-    TransMythUICheckBoxSetting *m_markForDeletion;
-
 };
 
 class ChannelGroupsSetting : public GroupSetting

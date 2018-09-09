@@ -277,7 +277,6 @@ bool GalleryUtil::LoadDirectory(ThumbList& itemList, const QString& dir,
         return false;
 
     QFileInfoList::const_iterator it = list.begin();
-    const QFileInfo *fi;
 
     if (thumbGen)
     {
@@ -292,7 +291,7 @@ bool GalleryUtil::LoadDirectory(ThumbList& itemList, const QString& dir,
 
     while (it != list.end())
     {
-        fi = &(*it);
+        const QFileInfo *fi = &(*it);
         ++it;
 
         // remove these already-resized pictures.
@@ -614,7 +613,7 @@ QSize GalleryUtil::ScaleToDest(const QSize &src, const QSize &dest, ScaleMax sca
         // Reduce to fit (but never enlarge)
         if (scaleWidth <= dest.width() && scaleHeight <= dest.height())
             break;
-        // Fall through
+        [[clang::fallthrough]];
 
     case kScaleToFit:
         // scale-min to dest height for most images

@@ -473,7 +473,7 @@ static void incomingCustomEvent(QEvent* e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)e;
+        MythEvent *me = static_cast<MythEvent *>(e);
         QString message = me->Message();
 
         message = message.simplified();
@@ -736,7 +736,6 @@ static int FlagCommercials(ProgramInfo *program_info, int jobid,
         {
             // not an integer, attempt comma separated list
             commDetectMethod = COMM_DETECT_UNINIT;
-            QMap<QString, SkipTypes>::const_iterator sit;
 
             QStringList list = commmethod.split(",", QString::SkipEmptyParts);
             QStringList::const_iterator it = list.begin();
@@ -993,7 +992,7 @@ static int FlagCommercials(QString filename, int jobid,
     return FlagCommercials(&pginfo, jobid, outputfilename, useDB, fullSpeed);
 }
 
-static int RebuildSeekTable(ProgramInfo *pginfo, int jobid)
+static int RebuildSeekTable(ProgramInfo *pginfo, int jobid, bool writefile = false)
 {
     QString filename = get_filename(pginfo);
 
@@ -1009,7 +1008,8 @@ static int RebuildSeekTable(ProgramInfo *pginfo, int jobid)
         if (!DoesFileExist(pginfo))
         {
             LOG(VB_GENERAL, LOG_ERR,
-                "Unable to find file in defined storage paths.");
+                QString("Unable to find file in defined storage "
+                        "paths for JobQueue ID# %1.").arg(jobid));
             return GENERIC_EXIT_PERMISSIONS_ERROR;
         }
     }
@@ -1041,7 +1041,11 @@ static int RebuildSeekTable(ProgramInfo *pginfo, int jobid)
         cerr << "Rebuild started at " << qPrintable(time) << endl;
     }
 
+    if (writefile)
+        gCoreContext->RegisterFileForWrite(filename);
     cfp->RebuildSeekTable(progress);
+    if (writefile)
+        gCoreContext->UnregisterFileForWrite(filename);
 
     if (progress)
     {
@@ -1054,7 +1058,7 @@ static int RebuildSeekTable(ProgramInfo *pginfo, int jobid)
     return GENERIC_EXIT_OK;
 }
 
-static int RebuildSeekTable(QString filename, int jobid)
+static int RebuildSeekTable(QString filename, int jobid, bool writefile = false)
 {
     if (progress)
     {
@@ -1062,10 +1066,10 @@ static int RebuildSeekTable(QString filename, int jobid)
              << "    " << filename.toLatin1().constData() << endl;
     }
     ProgramInfo pginfo(filename);
-    return RebuildSeekTable(&pginfo, jobid);
+    return RebuildSeekTable(&pginfo, jobid, writefile);
 }
 
-static int RebuildSeekTable(uint chanid, QDateTime starttime, int jobid)
+static int RebuildSeekTable(uint chanid, QDateTime starttime, int jobid, bool writefile = false)
 {
     ProgramInfo pginfo(chanid, starttime);
     if (progress)
@@ -1077,7 +1081,7 @@ static int RebuildSeekTable(uint chanid, QDateTime starttime, int jobid)
             cerr << "    " << pginfo.GetTitle().toLocal8Bit().constData() << " - "
                  << pginfo.GetSubtitle().toLocal8Bit().constData() << endl;
     }
-    return RebuildSeekTable(&pginfo, jobid);
+    return RebuildSeekTable(&pginfo, jobid, writefile);
 }
 
 int main(int argc, char *argv[])
@@ -1213,18 +1217,10 @@ int main(int argc, char *argv[])
                                             "Job status").arg(ret));
         else
             JobQueue::ChangeJobStatus(jobID, JOB_FINISHED,
-#if QT_VERSION < 0x050000
-                QCoreApplication::translate("(mythcommflag)",
-                                            "%n commercial break(s)",
-                                            "Job status",
-                                            QCoreApplication::UnicodeUTF8,
-                                            ret));
-#else
                 QCoreApplication::translate("(mythcommflag)",
                                             "%n commercial break(s)",
                                             "Job status",
                                             ret));
-#endif
     }
     else if (cmdline.toBool("video"))
     {
@@ -1261,7 +1257,7 @@ int main(int argc, char *argv[])
             if (cmdline.toBool("rebuild"))
                 result = RebuildSeekTable(pginfo.GetChanID(),
                                           pginfo.GetRecordingStartTime(),
-                                          -1);
+                                          -1, cmdline.toBool("writefile"));
             else
                 result = FlagCommercials(pginfo.GetChanID(),
                                          pginfo.GetRecordingStartTime(),
@@ -1284,12 +1280,11 @@ int main(int argc, char *argv[])
         if (query.exec() && query.isActive() && query.size() > 0)
         {
             QDateTime starttime;
-            uint chanid;
 
             while (query.next())
             {
                 starttime = MythDate::fromString(query.value(1).toString());
-                chanid = query.value(0).toUInt();
+                uint chanid = query.value(0).toUInt();
 
                 if (!cmdline.toBool("force") && !cmdline.toBool("rebuild"))
                 {

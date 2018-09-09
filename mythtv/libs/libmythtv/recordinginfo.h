@@ -57,7 +57,7 @@ class MTV_PUBLIC RecordingInfo : public ProgramInfo
         desiredrecendts(other.desiredrecendts),
         record(NULL),
         m_recordingFile(NULL)  { LoadRecordingFile(); }
-    RecordingInfo(const ProgramInfo &other) :
+    explicit RecordingInfo(const ProgramInfo &other) :
         ProgramInfo(other),
         oldrecstatus(RecStatus::Unknown),
         savedrecstatus(RecStatus::Unknown),
@@ -69,7 +69,7 @@ class MTV_PUBLIC RecordingInfo : public ProgramInfo
         desiredrecendts(endts),
         record(NULL),
         m_recordingFile(NULL)  { LoadRecordingFile(); }
-    RecordingInfo(uint _recordedid) :
+    explicit RecordingInfo(uint _recordedid) :
         ProgramInfo(_recordedid),
         oldrecstatus(RecStatus::Unknown),
         savedrecstatus(RecStatus::Unknown),
@@ -171,7 +171,8 @@ class MTV_PUBLIC RecordingInfo : public ProgramInfo
         bool future,
         int schedorder,
         uint mplexid,
-        uint sgroupid);
+        uint sgroupid,
+        const QString &inputname);
 
     /// Create RecordingInfo from 'record'+'channel' tables,
     /// user in scheduler.cpp  @ ~ 3566 & ~ 3643

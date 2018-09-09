@@ -55,7 +55,7 @@ class ChannelBase
     virtual void SetFd(int fd) { (void)fd; };
     /// \brief Returns file descriptor, -1 if it does not exist.
     virtual int GetFd(void) const { return -1; };
-    virtual bool Tune(const QString &freqid, int finetune) { return true; }
+    virtual bool Tune(const QString &, int) { return true; }
     virtual bool IsExternalChannelChangeInUse(void);
 
     // Gets
@@ -93,7 +93,7 @@ class ChannelBase
     virtual bool InitPictureAttributes(void) { return false; }
     virtual int  GetPictureAttribute(PictureAttribute) const { return -1; }
     virtual int  ChangePictureAttribute(
-        PictureAdjustType, PictureAttribute, bool up) { return -1; }
+        PictureAdjustType, PictureAttribute, bool) { return -1; }
 
     bool CheckChannel(const QString &channum) const;
 
@@ -107,7 +107,8 @@ class ChannelBase
         const FireWireDBOptions  &fwOpt,
         const QString            &startchannel,
         bool                      enter_power_save_mode,
-        QString                  &rbFileExt);
+        QString                  &rbFileExt,
+        bool                      setchan);
 
   protected:
     /// \brief Switches to another input on hardware,

@@ -49,7 +49,7 @@ typedef vector<pid_cache_item_t> pid_cache_t;
  */
 class MTV_PUBLIC ChannelUtil
 {
-    Q_DECLARE_TR_FUNCTIONS(ChannelUtil)
+    Q_DECLARE_TR_FUNCTIONS(ChannelUtil);
 
   public:
     // Multiplex Stuff
@@ -116,10 +116,10 @@ class MTV_PUBLIC ChannelUtil
                                  bool hidden,
                                  bool hidden_in_guide,
                                  const QString &freqid,
-                                 QString icon    = QString::null,
+                                 QString icon    = QString(),
                                  QString format  = "Default",
-                                 QString xmltvid = QString::null,
-                                 QString default_authority = QString::null);
+                                 QString xmltvid = QString(),
+                                 QString default_authority = QString());
 
     static bool    UpdateChannel(uint db_mplexid,
                                  uint source_id,
@@ -133,11 +133,11 @@ class MTV_PUBLIC ChannelUtil
                                  bool use_on_air_guide,
                                  bool hidden,
                                  bool hidden_in_guide,
-                                 QString freqid  = QString::null,
-                                 QString icon    = QString::null,
-                                 QString format  = QString::null,
-                                 QString xmltvid = QString::null,
-                                 QString default_authority = QString::null);
+                                 QString freqid  = QString(),
+                                 QString icon    = QString(),
+                                 QString format  = QString(),
+                                 QString xmltvid = QString(),
+                                 QString default_authority = QString());
 
     static bool    CreateIPTVTuningData(
         uint channel_id, const IPTVTuningData &tuning)
@@ -315,7 +315,7 @@ class MTV_PUBLIC ChannelUtil
                                    int            chanid);
 
     static bool    SaveCachedPids(uint chanid,
-                                  const pid_cache_t &pid_cache,
+                                  const pid_cache_t &_pid_cache,
                                   bool delete_all = false);
 
     static const QString kATSCSeparators;

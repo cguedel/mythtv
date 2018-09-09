@@ -491,10 +491,9 @@ QString NetworkControl::processKey(NetworkCommand *nc)
         keyDest = GetMythMainWindow()->currentWidget()->focusWidget();
 
     int curToken = 1;
-    int tokenLen = 0;
     while (curToken < nc->getArgCount())
     {
-        tokenLen = nc->getArg(curToken).length();
+        int tokenLen = nc->getArg(curToken).length();
 
         if (nc->getArg(curToken) == "sleep")
         {
@@ -1551,7 +1550,7 @@ void NetworkControl::customEvent(QEvent *e)
 {
     if ((MythEvent::Type)(e->type()) == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)e;
+        MythEvent *me = static_cast<MythEvent *>(e);
         QString message = me->Message();
 
         if (message.startsWith("MUSIC_CONTROL"))

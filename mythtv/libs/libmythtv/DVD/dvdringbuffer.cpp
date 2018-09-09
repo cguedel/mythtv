@@ -475,7 +475,15 @@ void DVDRingBuffer::GetDescForPos(QString &desc)
     }
 }
 
-bool DVDRingBuffer::OpenFile(const QString &lfilename, uint retry_ms)
+/** \fn DVDRingBuffer::OpenFile(const QString &, uint)
+ *  \brief Opens a dvd device for reading.
+ *
+ *  \param lfilename   Path of the dvd device to read.
+ *  \param retry_ms    Ignored. This value is part of the API
+ *                     inherited from the parent class.
+ *  \return Returns true if the dvd was opened.
+ */
+bool DVDRingBuffer::OpenFile(const QString &lfilename, uint /*retry_ms*/)
 {
     QMutexLocker contextLocker(&m_contextLock);
     rwlock.lockForWrite();
@@ -1965,7 +1973,8 @@ uint DVDRingBuffer::GetAudioLanguage(int idx)
 
 /** \brief get the logical track index (into PGC_AST_CTL) of
   *        the element that maps the given physical stream id.
-  * \param key stream_id
+  * \param stream_id The physical stream id.
+  * \return The logical stream id,, or -1 if the stream can't be found.
 */
 int DVDRingBuffer::GetAudioTrackNum(uint stream_id)
 {
@@ -2012,7 +2021,7 @@ int DVDRingBuffer::GetAudioTrackType(uint idx)
     if (physicalStreamId < 0)
         return -1;
 
-    if (dvdnav_get_audio_attr(m_dvdnav, physicalStreamId, &attributes) >= 1)
+    if (dvdnav_get_audio_attr(m_dvdnav, physicalStreamId, &attributes) == DVDNAV_STATUS_OK)
     {
         LOG(VB_AUDIO, LOG_INFO, QString("DVD Audio Track #%1 Language "
                                         "Extension Code - %2")
@@ -2223,20 +2232,17 @@ uint DVDRingBuffer::TitleTimeLeft(void)
 void DVDRingBuffer::guess_palette(uint32_t *rgba_palette,uint8_t *palette,
                                         uint8_t *alpha)
 {
-    int i,r,g,b,y,cr,cb;
-    uint32_t yuv;
-
     memset(rgba_palette, 0, 16);
 
-    for (i=0 ; i < 4 ; i++)
+    for (int i=0 ; i < 4 ; i++)
     {
-        yuv = m_clut[palette[i]];
-        y = ((yuv >> 16) & 0xff);
-        cr = ((yuv >> 8) & 0xff);
-        cb = ((yuv >> 0) & 0xff);
-        r  = int(y + 1.4022 * (cr - 128));
-        b  = int(y + 1.7710 * (cb - 128));
-        g  = int(1.7047 * y - (0.1952 * b) - (0.5647 * r)) ;
+        uint32_t yuv = m_clut[palette[i]];
+        int y = ((yuv >> 16) & 0xff);
+        int cr = ((yuv >> 8) & 0xff);
+        int cb = ((yuv >> 0) & 0xff);
+        int r  = int(y + 1.4022 * (cr - 128));
+        int b  = int(y + 1.7710 * (cb - 128));
+        int g  = int(1.7047 * y - (0.1952 * b) - (0.5647 * r)) ;
         if (r < 0) r = 0;
         if (g < 0) g = 0;
         if (b < 0) b = 0;
@@ -2253,8 +2259,7 @@ void DVDRingBuffer::guess_palette(uint32_t *rgba_palette,uint8_t *palette,
 int DVDRingBuffer::decode_rle(uint8_t *bitmap, int linesize, int w, int h,
                                   const uint8_t *buf, int nibble_offset, int buf_size)
 {
-    unsigned int v;
-    int x, y, len, color, nibble_end;
+    int x, y, nibble_end;
     uint8_t *d;
 
     nibble_end = buf_size * 2;
@@ -2264,7 +2269,7 @@ int DVDRingBuffer::decode_rle(uint8_t *bitmap, int linesize, int w, int h,
     for(;;) {
         if (nibble_offset >= nibble_end)
             return -1;
-        v = get_nibble(buf, nibble_offset++);
+        uint v = get_nibble(buf, nibble_offset++);
         if (v < 0x4) {
             v = (v << 4) | get_nibble(buf, nibble_offset++);
             if (v < 0x10) {
@@ -2277,10 +2282,10 @@ int DVDRingBuffer::decode_rle(uint8_t *bitmap, int linesize, int w, int h,
                 }
             }
         }
-        len = v >> 2;
+        int len = v >> 2;
         if (len > (w - x))
             len = (w - x);
-        color = v & 0x03;
+        int color = v & 0x03;
         memset(d + x, color, len);
         x += len;
         if (x >= w) {

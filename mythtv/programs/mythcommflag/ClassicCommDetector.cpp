@@ -344,7 +344,7 @@ bool ClassicCommDetector::go()
         int logoDetectBorder =
             gCoreContext->GetNumSetting("CommDetectLogoBorder", 16);
         logoDetector = new ClassicLogoDetector(this, width, height,
-            logoDetectBorder, horizSpacing, vertSpacing);
+            logoDetectBorder);
 
         requiredHeadStart += max(
             int64_t(0), int64_t(recordingStartedAt.secsTo(startedAt)));
@@ -771,7 +771,6 @@ void ClassicCommDetector::ProcessFrame(VideoFrame *frame,
 {
     int max = 0;
     int min = 255;
-    int avg = 0;
     unsigned char pixel;
     int blankPixelsChecked = 0;
     long long totBrightness = 0;
@@ -940,7 +939,7 @@ void ClassicCommDetector::ProcessFrame(VideoFrame *frame,
             frameInfo[curFrameNumber].format |= COMM_FORMAT_PILLARBOX;
         }
 
-        avg = totBrightness / blankPixelsChecked;
+        int avg = totBrightness / blankPixelsChecked;
 
         frameInfo[curFrameNumber].minBrightness = min;
         frameInfo[curFrameNumber].maxBrightness = max;
@@ -1273,6 +1272,7 @@ void ClassicCommDetector::BuildAllMethodsCommList(void)
             if (formatCounts[i] > formatFrames)
             {
                 format = i;
+                // cppcheck-suppress unreadVariable
                 formatFrames = formatCounts[i];
             }
         }
@@ -1321,6 +1321,7 @@ void ClassicCommDetector::BuildAllMethodsCommList(void)
         }
         else
         {
+            // cppcheck-suppress unreadVariable
             lastFrameWasBlank = false;
         }
 
@@ -1822,6 +1823,7 @@ void ClassicCommDetector::BuildAllMethodsCommList(void)
                     fbp->aspectMatch, thisScore);
         LOG(VB_COMMFLAG, LOG_DEBUG, msg);
 
+        // cppcheck-suppress unreadVariable
         lastScore = thisScore;
         curBlock++;
     }

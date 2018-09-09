@@ -575,7 +575,6 @@ public:
     AudioConvertInternal(AVSampleFormat in, AVSampleFormat out) :
     m_in(in), m_out(out)
     {
-        char error[AV_ERROR_MAX_STRING_SIZE];
         m_swr = swr_alloc_set_opts(NULL,
                                    av_get_default_channel_layout(1),
                                    m_out,
@@ -593,6 +592,7 @@ public:
         int ret = swr_init(m_swr);
         if (ret < 0)
         {
+            char error[AV_ERROR_MAX_STRING_SIZE];
             LOG(VB_AUDIO, LOG_ERR, LOC +
                 QString("error initializing resampler context (%1)")
                 .arg(av_make_error_string(error, sizeof(error), ret)));
@@ -683,6 +683,7 @@ int AudioConvert::Process(void* out, const void* in, int bytes, bool noclip)
         // this leave S24 -> U8/S16.
         // TODO: native handling of those ; use internal temp buffer in the mean time
 
+        // cppcheck-suppress unassignedVariable
         uint8_t     buffer[65536+15];
         uint8_t*    tmp = (uint8_t*)(((long)buffer + 15) & ~0xf);
         int left        = bytes;

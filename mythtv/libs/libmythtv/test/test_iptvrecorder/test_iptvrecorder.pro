@@ -1,13 +1,6 @@
 include ( ../../../../settings.pro )
 
-QT += xml sql network
-
-contains(QT_VERSION, ^4\\.[0-9]\\..*) {
-CONFIG += qtestlib
-}
-contains(QT_VERSION, ^5\\.[0-9]\\..*) {
-QT += testlib
-}
+QT += xml sql network testlib
 
 TEMPLATE = app
 TARGET = test_iptvrecorder
@@ -15,9 +8,9 @@ DEPENDPATH += . ../..
 INCLUDEPATH += . ../.. ../../mpeg ../../../libmythui ../../../libmyth ../../../libmythbase
 INCLUDEPATH += ../../../libmythservicecontracts
 
-LIBS += ../../iptvchannelfetcher.o
-LIBS += ../../scanmonitor.o
-LIBS += ../../moc_scanmonitor.o
+LIBS += ../../$(OBJECTS_DIR)iptvchannelfetcher.o
+LIBS += ../../$(OBJECTS_DIR)scanmonitor.o
+LIBS += ../../$(OBJECTS_DIR)moc_scanmonitor.o
 LIBS += -L../../../libmythbase -lmythbase-$$LIBVERSION
 LIBS += -L../../../libmythui -lmythui-$$LIBVERSION
 LIBS += -L../../../libmythupnp -lmythupnp-$$LIBVERSION
@@ -31,7 +24,6 @@ LIBS += -L../../../../external/FFmpeg/libswresample -lmythswresample
 LIBS += -L../../../../external/FFmpeg/libavfilter -lmythavfilter
 LIBS += -L../../../../external/FFmpeg/libpostproc -lmythpostproc
 using_mheg:LIBS += -L../../../libmythfreemheg -lmythfreemheg-$$LIBVERSION
-using_hdhomerun:LIBS += -L../../../../external/libhdhomerun -lmythhdhomerun-$$LIBVERSION
 LIBS += -L../.. -lmythtv-$$LIBVERSION
 
 contains(QMAKE_CXX, "g++") {
@@ -53,7 +45,6 @@ QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libavcodec
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libavfilter
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libpostproc
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/FFmpeg/libswresample
-QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../../external/libhdhomerun
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../libmythbase
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../libmyth
 QMAKE_LFLAGS += -Wl,$$_RPATH_$(PWD)/../../../libmythui
@@ -67,6 +58,9 @@ HEADERS += test_iptvrecorder.h
 SOURCES += test_iptvrecorder.cpp
 
 QMAKE_CLEAN += $(TARGET) $(TARGETA) $(TARGETD) $(TARGET0) $(TARGET1) $(TARGET2)
-QMAKE_CLEAN += ; rm -f *.gcov *.gcda *.gcno
+QMAKE_CLEAN += ; ( cd $(OBJECTS_DIR) && rm -f *.gcov *.gcda *.gcno )
 
 LIBS += $$EXTRA_LIBS $$LATE_LIBS
+
+# Fix runtime linking on Ubuntu 17.10.
+linux:QMAKE_LFLAGS += -Wl,--disable-new-dtags

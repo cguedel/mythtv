@@ -35,11 +35,13 @@
  *  \param _channel V4lChannel for card
  *  \param _flags   Flags to start with
  */
-V4L2encSignalMonitor::V4L2encSignalMonitor(int db_cardnum, V4LChannel *_channel,
-                                     uint64_t _flags) :
-    DTVSignalMonitor(db_cardnum, _channel, _flags),
-    m_stream_handler(nullptr), m_isTS(false),
-    m_strength(0), m_stable_time(1500), m_width(0), m_height(0), m_lock_cnt(0)
+V4L2encSignalMonitor::V4L2encSignalMonitor(int db_cardnum,
+                                           V4LChannel *_channel,
+                                           bool _release_stream,
+                                           uint64_t _flags)
+    : DTVSignalMonitor(db_cardnum, _channel, _release_stream, _flags),
+      m_stream_handler(nullptr), m_isTS(false),
+      m_strength(0), m_stable_time(1500), m_width(0), m_height(0), m_lock_cnt(0)
 {
     LOG(VB_CHANNEL, LOG_INFO, LOC + "ctor");
 
@@ -176,7 +178,7 @@ bool V4L2encSignalMonitor::HasLock(void)
     return m_strength > 50;
 }
 
-/** \fn V4L2encSignalMonitor::HandleHDPVR(void)
+/**
  *  \brief Wait for a stable signal
  *
  *  The HD-PVR will produce garbage if the resolution or audio type

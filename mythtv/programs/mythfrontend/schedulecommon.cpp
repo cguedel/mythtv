@@ -22,6 +22,7 @@
 #include "scheduleeditor.h"
 
 #include "proglist.h"
+#include "prevreclist.h"
 #include "customedit.h"
 #include "guidegrid.h"
 #include "progdetails.h"
@@ -94,7 +95,7 @@ void ScheduleCommon::ShowUpcomingScheduled(void) const
     RecordingInfo ri(*pginfo);
     uint id;
 
-    if ((id = ri.GetRecordingRuleID()) <= 0)
+    if ((id = ri.GetRecordingRuleID()) == 0)
         return ShowUpcoming(pginfo->GetTitle(), pginfo->GetSeriesID());
 
     MythScreenStack *mainStack = GetMythMainWindow()->GetMainStack();
@@ -190,7 +191,10 @@ void ScheduleCommon::EditScheduled(RecordingInfo *recinfo)
     if (schededit->Create())
         mainStack->AddScreen(schededit);
     else
+    {
         delete schededit;
+        ShowOkPopup(tr("Recording rule does not exist."));
+    }
 }
 
 /**
@@ -257,7 +261,7 @@ void ScheduleCommon::ShowPrevious(void) const
 void ScheduleCommon::ShowPrevious(uint ruleid, const QString &title) const
 {
     MythScreenStack *mainStack = GetMythMainWindow()->GetMainStack();
-    ProgLister *pl = new ProgLister(mainStack, ruleid, title);
+    PrevRecordedList *pl = new PrevRecordedList(mainStack, ruleid, title);
     if (pl->Create())
         mainStack->AddScreen(pl);
     else

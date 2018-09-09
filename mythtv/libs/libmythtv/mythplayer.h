@@ -138,7 +138,7 @@ class MTV_PUBLIC MythPlayer
     friend class Transcode;
 
   public:
-    MythPlayer(PlayerFlags flags = kNoFlags);
+    explicit MythPlayer(PlayerFlags flags = kNoFlags);
     MythPlayer(const MythPlayer& rhs);
     virtual ~MythPlayer();
 
@@ -150,7 +150,7 @@ class MTV_PUBLIC MythPlayer
     void SetPlayerInfo(TV *tv, QWidget *widget, PlayerContext *ctx);
     void SetLength(int len)                   { totalLength = len; }
     void SetFramesPlayed(uint64_t played);
-    void SetVideoFilters(const QString &override);
+    void SetVideoFilters(const QString &overridefilter);
     void SetEof(EofState eof);
     void SetPIPActive(bool is_active)         { pip_active = is_active; }
     void SetPIPVisible(bool is_visible)       { pip_visible = is_visible; }
@@ -235,10 +235,11 @@ class MTV_PUBLIC MythPlayer
 
     // Non-const gets
     virtual char *GetScreenGrabAtFrame(uint64_t frameNum, bool absolute,
-                                       int &buflen, int &vw, int &vh, float &ar);
-    virtual char *GetScreenGrab(int secondsin, int &buflen,
+                                       int &bufflen, int &vw, int &vh, float &ar);
+    virtual char *GetScreenGrab(int secondsin, int &bufflen,
                                 int &vw, int &vh, float &ar);
     InteractiveTV *GetInteractiveTV(void);
+    VideoOutput *GetVideoOutput(void)       { return videoOutput; }
 
     // Title stuff
     virtual bool SwitchTitle(int /*title*/) { return false; }
@@ -252,8 +253,7 @@ class MTV_PUBLIC MythPlayer
 
     // Transcode stuff
     void InitForTranscode(bool copyaudio, bool copyvideo);
-    bool TranscodeGetNextFrame(frm_dir_map_t::iterator &dm_iter,
-                               int &did_ff, bool &is_key, bool honorCutList);
+    bool TranscodeGetNextFrame(int &did_ff, bool &is_key, bool honorCutList);
     bool WriteStoredData(
         RingBuffer *outRingBuffer, bool writevideo, long timecodeOffset);
     long UpdateStoredFrameNum(long curFrameNum);
@@ -374,6 +374,7 @@ class MTV_PUBLIC MythPlayer
     static const double kInaccuracyFull;
 
     void SaveTotalFrames(void);
+    void SetErrored(const QString &reason);
 
   protected:
     // Initialization
@@ -381,8 +382,8 @@ class MTV_PUBLIC MythPlayer
 
     // Non-public sets
     virtual void SetBookmark(bool clear = false);
-    bool AddPIPPlayer(MythPlayer *pip, PIPLocation loc, uint timeout);
-    bool RemovePIPPlayer(MythPlayer *pip, uint timeout);
+    bool AddPIPPlayer(MythPlayer *pip, PIPLocation loc);
+    bool RemovePIPPlayer(MythPlayer *pip);
     void NextScanType(void)
         { SetScanType((FrameScanType)(((int)m_scan + 1) & 0x3)); }
     void SetScanType(FrameScanType);
@@ -405,7 +406,6 @@ class MTV_PUBLIC MythPlayer
     MuteState IncrMuteState(void)           { return audio.IncrMuteState();      }
 
     // Non-const gets
-    VideoOutput *GetVideoOutput(void)       { return videoOutput; }
     OSD         *GetOSD(void)               { return osd;         }
     virtual void SeekForScreenGrab(uint64_t &number, uint64_t frameNum,
                                    bool absolute);
@@ -564,7 +564,6 @@ class MTV_PUBLIC MythPlayer
     // Private Sets
     void SetPlayingInfo(const ProgramInfo &pginfo);
     void SetPlaying(bool is_playing);
-    void SetErrored(const QString &reason);
     void ResetErrored(void);
 
     // Private Gets
@@ -617,7 +616,6 @@ class MTV_PUBLIC MythPlayer
     int64_t AVSyncGetAudiotime(void);
     void  SetFrameInterval(FrameScanType scan, double speed);
     void  FallbackDeint(void);
-    void  CheckExtraAudioDecode(void);
 
     // Private LiveTV stuff
     void  SwitchToProgram(void);
@@ -696,6 +694,7 @@ class MTV_PUBLIC MythPlayer
     /// How often we have tried to wait for a video output buffer and failed
     int       videobuf_retries;
     uint64_t  framesPlayed;
+    uint64_t  prebufferFramesPlayed;
     // "Fake" frame counter for when the container frame rate doesn't
     // match the stream frame rate.
     uint64_t  framesPlayedExtra;
@@ -811,6 +810,7 @@ class MTV_PUBLIC MythPlayer
     bool       normal_speed;
     int        frame_interval;///< always adjusted for play_speed
     int        m_frame_interval;///< used to detect changes to frame_interval
+    int        m_fpsMultiplier;///< used to detect changes
 
     int        ffrew_skip;
     int        ffrew_adjust;

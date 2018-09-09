@@ -7,6 +7,12 @@
 #include <QDateTime>
 #include <QMap>
 
+enum DigestUserActions {
+    DIGEST_USER_ADD,
+    DIGEST_USER_REMOVE,
+    DIGEST_USER_CHANGE_PW
+};
+
 class MBASE_PUBLIC MythUserSession
 {
   public :
@@ -37,8 +43,12 @@ class MBASE_PUBLIC MythUserSession
     const QDateTime GetSessionExpires() const { return m_sessionExpires; }
 
     /**
-     * \brief Check if the user hash the given permission in a context
-     * \param username
+     * \brief Check if the user has the given permission in a context
+     *
+     * This function is currently unimplemented.
+     *
+     * \param context
+     * \param permission
      */
     bool CheckPermission( const QString &context, uint permission);
 
@@ -78,7 +88,7 @@ class MBASE_PUBLIC MythUserSession
  * unprotected networks. Even if traffic between the client and server is
  * captured, the digest and password cannot be determined and the
  * attacker cannot gain system access in that way. It cannot protect against
- * a full man-in-the-middle but it that really is a concern, users should
+ * a full man-in-the-middle but if that really is a concern, users should
  * setup TLS.
  *
  * The digest isn't very strong if it leaked, but for that to happen the
@@ -100,7 +110,7 @@ class MBASE_PUBLIC MythSessionManager
 
     /**
      * \brief Check if the session token is valid
-     * \param username
+     * \param sessionToken
      */
     bool IsValidSession(const QString &sessionToken);
 
@@ -152,6 +162,20 @@ class MBASE_PUBLIC MythSessionManager
     static QByteArray CreateDigest(const QString &username,
                                    const QString &password);
 
+    /**
+     * \brief Manage digest user entries
+     * \param action requires one from: DigestUserActions
+     * \param username always required
+     * \param password always required
+     * \param newPassword if action=DIGEST_USER_CHANGE_PW
+     * \param adminPassword if action=DIGEST_USER_ADD
+     */
+    bool ManageDigestUser(DigestUserActions action,
+                          const QString    &username,
+                          const QString    &password,
+                          const QString    &newPassword,
+                          const QString    &adminPassword);
+
   private:
     /**
      * \brief Load the values from the sessions table on startup
@@ -182,6 +206,17 @@ class MBASE_PUBLIC MythSessionManager
      * \brief Removes user session from the database and cache
      */
     void DestroyUserSession(const QString &sessionToken);
+
+    bool AddDigestUser(const QString &username,
+                       const QString &password,
+                       const QString &adminPassword);
+
+    bool RemoveDigestUser(const QString &username,
+                          const QString &password);
+
+    bool ChangeDigestUserPassword(const QString &username,
+                                  const QString &oldPassword,
+                                  const QString &newPassword);
 
     QMap<QString, MythUserSession> m_sessionList;
 };

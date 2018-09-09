@@ -53,7 +53,7 @@ ChannelScanner::ChannelScanner() :
 #ifdef USING_VBOX
     vboxScanner(NULL),
 #endif
-    freeToAirOnly(false), serviceRequirements(kRequireAV)
+    freeToAirOnly(false), addFullTS(false), serviceRequirements(kRequireAV)
 {
 }
 
@@ -116,6 +116,7 @@ void ChannelScanner::Scan(
     bool           do_follow_nit,
     bool           do_test_decryption,
     bool           do_fta_only,
+    bool           do_add_full_ts,
     ServiceRequirements service_requirements,
     // stuff needed for particular scans
     uint           mplexid /* TransportScan */,
@@ -127,6 +128,7 @@ void ChannelScanner::Scan(
     const QString &tbl_end   /* FullScan optional */)
 {
     freeToAirOnly = do_fta_only;
+    addFullTS = do_add_full_ts;
     serviceRequirements = service_requirements;
 
     PreScanCommon(scantype, cardid, inputname,
@@ -525,6 +527,7 @@ void ChannelScanner::PreScanCommon(
     bool using_rotor = false;
 
 #ifdef USING_DVB
+    // cppcheck-suppress redundantAssignment
     dvbm = sigmonScanner->GetDVBSignalMonitor();
     if (dvbm && mon)
         using_rotor = mon->HasFlags(SignalMonitor::kDVBSigMon_WaitForPos);

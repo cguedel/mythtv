@@ -155,10 +155,17 @@ AudioOutputBase::~AudioOutputBase()
     if (kAudioSRCOutputSize > 0)
         delete[] src_out;
 
+#ifndef NDEBUG
     assert(memory_corruption_test0 == 0xdeadbeef);
     assert(memory_corruption_test1 == 0xdeadbeef);
     assert(memory_corruption_test2 == 0xdeadbeef);
     assert(memory_corruption_test3 == 0xdeadbeef);
+#else
+    Q_UNUSED(memory_corruption_test0);
+    Q_UNUSED(memory_corruption_test1);
+    Q_UNUSED(memory_corruption_test2);
+    Q_UNUSED(memory_corruption_test3);
+#endif
 }
 
 void AudioOutputBase::InitSettings(const AudioSettings &settings)
@@ -1298,17 +1305,16 @@ int AudioOutputBase::CopyWithUpmix(char *buffer, int frames, uint &org_waud)
 
     int i = 0;
     len = 0;
-    int nFrames, bdFrames;
     while (i < frames)
     {
         i += upmixer->putFrames(buffer + i * off, frames - i, source_channels);
-        nFrames = upmixer->numFrames();
+        int nFrames = upmixer->numFrames();
         if (!nFrames)
             continue;
 
         len += CheckFreeSpace(nFrames);
 
-        bdFrames = (kAudioRingBufferSize - org_waud) / bpf;
+        int bdFrames = (kAudioRingBufferSize - org_waud) / bpf;
         if (bdFrames < nFrames)
         {
             if ((org_waud % bpf) != 0)

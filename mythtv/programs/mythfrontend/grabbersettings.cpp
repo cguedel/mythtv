@@ -29,11 +29,8 @@ GrabberSettings::GrabberSettings(MythScreenStack *parent, const char *name)
 
 bool GrabberSettings::Create()
 {
-    bool foundtheme = false;
-
     // Load the theme for this screen
-    foundtheme = LoadWindowFromXML("config-ui.xml", "grabbersettings", this);
-
+    bool foundtheme = LoadWindowFromXML("config-ui.xml", "grabbersettings", this);
     if (!foundtheme)
         return false;
 
@@ -170,10 +167,5 @@ bool GrabberSettings::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
-
-    if (!handled && MythScreenType::keyPressEvent(event))
-        handled = true;
-
-    return handled;
+    return MythScreenType::keyPressEvent(event);
 }

@@ -46,10 +46,8 @@ StreamView::~StreamView()
 
 bool StreamView::Create(void)
 {
-    bool err = false;
-
     // Load the theme for this screen
-    err = LoadWindowFromXML("stream-ui.xml", "streamview", this);
+    bool err = LoadWindowFromXML("stream-ui.xml", "streamview", this);
 
     if (!err)
         return false;
@@ -86,9 +84,7 @@ bool StreamView::Create(void)
 
 void StreamView::ShowMenu(void)
 {
-    MythMenu *menu = NULL;
-
-    menu = new MythMenu(tr("Stream Actions"), this, "mainmenu");
+    MythMenu *menu = new MythMenu(tr("Stream Actions"), this, "mainmenu");
     menu->AddItem(tr("Add Stream"));
 
     if (m_streamList->GetItemCurrent())
@@ -222,7 +218,7 @@ void StreamView::customEvent(QEvent *event)
     }
     else if (event->type() == MythEvent::MythEventMessage)
     {
-        MythEvent *me = (MythEvent *)event;
+        MythEvent *me = static_cast<MythEvent *>(event);
         QStringList tokens = me->Message().split(" ", QString::SkipEmptyParts);
 
         if (tokens.isEmpty())
@@ -343,9 +339,8 @@ bool StreamView::keyPressEvent(QKeyEvent *event)
     if (GetFocusWidget() && GetFocusWidget()->keyPressEvent(event))
         return true;
 
-    bool handled = false;
     QStringList actions;
-    handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
+    bool handled = GetMythMainWindow()->TranslateKeyPress("Music", event, actions);
 
     for (int i = 0; i < actions.size() && !handled; i++)
     {

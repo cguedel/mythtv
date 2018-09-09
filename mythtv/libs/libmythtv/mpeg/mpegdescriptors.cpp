@@ -3,10 +3,6 @@
 
 #include <limits.h>
 
-#if QT_VERSION < 0x050000
-#include <QTextDocument> // for escape (note escape misses &apos; TODO fix upstream)
-#endif
-
 #include "sctedescriptors.h"
 #include "atscdescriptors.h"
 #include "dvbdescriptors.h"
@@ -481,13 +477,7 @@ QString MPEGDescriptor::toStringXML(uint level) const
     }
 
     str += "\n" + indent_1 + "</Data>\n";
-
-#if QT_VERSION >= 0x050000
     str += indent_1 + "<Decoded>" + toString().toHtmlEscaped() + "</Decoded>\n";
-#else
-    str += indent_1 + "<Decoded>" + Qt::escape (toString()) + "</Decoded>\n";
-#endif
-
     str += indent_0 + "</Descriptor>";
 
     return str;
@@ -496,13 +486,13 @@ QString MPEGDescriptor::toStringXML(uint level) const
 // Dump the descriptor in the same format as hexdump -C
 QString MPEGDescriptor::hexdump(void) const
 {
+    uint i;
     QString str, hex, prt;
-    uint i, ch;
     for (i=0; i<DescriptorLength(); i++)
     {
-        ch = _data[i+2];
+        uint ch = _data[i+2];
         hex.append(QString(" %1").arg(ch, 2, 16, QChar('0')));
-        prt.append(QString("%1").arg(isalnum(ch) ? QChar(ch) : '.'));
+        prt.append(QString("%1").arg(isprint(ch) ? QChar(ch) : '.'));
         if (((i+1) % 8) == 0)
             hex.append(" ");
         if (((i+1) % 16) == 0)
@@ -580,7 +570,7 @@ QString RegistrationDescriptor::GetDescription(const QString &fmt)
 {
     InitializeDescriptionMap();
 
-    QString ret = QString::null;
+    QString ret;
     {
         QMutexLocker locker(&description_map_lock);
         QMap<QString,QString>::const_iterator it = description_map.find(fmt);

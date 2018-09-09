@@ -608,8 +608,6 @@ static void parse_cc_packet(CC708Reader* cb_cbs, CaptionPacket* pkt,
     const unsigned char* pkt_buf = pkt->data;
     const int pkt_size = pkt->size;
     int off = 1;
-    int service_number = 0;
-    int block_data_offset = 0;
     int len     = ((((int)pkt_buf[0]) & 0x3f)<<1) - 1;
 
     if (len < 0)
@@ -640,8 +638,8 @@ static void parse_cc_packet(CC708Reader* cb_cbs, CaptionPacket* pkt,
     while (off < pkt_size && pkt_buf[off])
     { // service_block
         int block_size = pkt_buf[off] & 0x1f;
-        service_number = (pkt_buf[off]>>5) & 0x7;
-        block_data_offset = (0x7==service_number && block_size!=0) ?
+        int service_number = (pkt_buf[off]>>5) & 0x7;
+        int block_data_offset = (0x7==service_number && block_size!=0) ?
             off+2 : off+1;
 #if DEBUG_CC_SERVICE_BLOCK
         LOG(VB_VBI, LOG_DEBUG,
@@ -741,32 +739,32 @@ ushort CCtableG1[0x60] =
 //          8           9           a           b
 //          c           d           e           f
     0xA0, // unicode non-breaking space
-                (uchar)'°', (uchar)'¢', (uchar)'£', /* 0xa0-0xa3 */
-    (uchar)'§', (uchar)'•', (uchar)'¶', (uchar)'ß', /* 0xa4-0xa7 */
-    (uchar)'®', (uchar)'©', (uchar)'™', (uchar)'´', /* 0xa8-0xab */
-    (uchar)'¨', (uchar)'≠', (uchar)'Æ', (uchar)'Ø', /* 0xac-0xaf */
-    (uchar)'∞', (uchar)'±', (uchar)'≤', (uchar)'≥', /* 0xb0-0xb3 */
-    (uchar)'¥', (uchar)'µ', (uchar)'∂', (uchar)'∑', /* 0xb4-0xb7 */
-    (uchar)'∏', (uchar)'π', (uchar)'∫', (uchar)'ª', /* 0xb8-0xbb */
-    (uchar)'º', (uchar)'Ω', (uchar)'æ', (uchar)'ø', /* 0xbc-0xbf */
+            0xA1 /* ¬° */, 0xA2 /* ¬¢ */, 0xA3 /* ¬£ */,
+    0xA4 /* ¬§ */, 0xA5 /* ¬• */, 0xA6 /* ¬¶ */, 0xA7 /* ¬ß */,
+    0xA8 /* ¬® */, 0xA9 /* ¬© */, 0xAA /* ¬™ */, 0xAB /* ¬´ */,
+    0xAC /* ¬¨ */, 0xAD /* ¬≠ */, 0xAE /* ¬Æ */, 0xAF /* ¬Ø */,
+    0xB0 /* ¬∞ */, 0xB1 /* ¬± */, 0xB2 /* ¬≤ */, 0xB3 /* ¬≥ */,
+    0xB4 /* ¬¥ */, 0xB5 /* ¬µ */, 0xB6 /* ¬∂ */, 0xB7 /* ¬∑ */,
+    0xB8 /* ¬∏ */, 0xB9 /* ¬π */, 0xBA /* ¬∫ */, 0xBB /* ¬ª */,
+    0xBC /* ¬º */, 0xBD /* ¬Ω */, 0xBE /* ¬æ */, 0xBF /* ¬ø */,
 
-    (uchar)'¿', (uchar)'¡', (uchar)'¬', (uchar)'√', /* 0xc0-0xc3 */
-    (uchar)'ƒ', (uchar)'≈', (uchar)'∆', (uchar)'«', /* 0xc4-0xc7 */
-    (uchar)'»', (uchar)'…', (uchar)' ', (uchar)'À', /* 0xc8-0xcb */
-    (uchar)'Ã', (uchar)'Õ', (uchar)'Œ', (uchar)'œ', /* 0xcc-0xcf */
-    (uchar)'–', (uchar)'—', (uchar)'“', (uchar)'”', /* 0xd0-0xd3 */
-    (uchar)'‘', (uchar)'’', (uchar)'÷', (uchar)'◊', /* 0xd4-0xd7 */
-    (uchar)'ÿ', (uchar)'Ÿ', (uchar)'⁄', (uchar)'€', /* 0xd8-0xdb */
-    (uchar)'‹', (uchar)'›', (uchar)'ﬁ', (uchar)'ﬂ', /* 0xdc-0xdf */
+    0xC0 /* √Ä */, 0xC1 /* √Å */, 0xC2 /* √Ç */, 0xC3 /* √É */,
+    0xC4 /* √Ñ */, 0xC5 /* √Ö */, 0xC6 /* √Ü */, 0xC7 /* √á */,
+    0xC8 /* √à */, 0xC9 /* √â */, 0xCA /* √ä */, 0xCB /* √ã */,
+    0xCC /* √å */, 0xCD /* √ç */, 0xCE /* √é */, 0xCF /* √è */,
+    0xD0 /* √ê */, 0xD1 /* √ë */, 0xD2 /* √í */, 0xD3 /* √ì */,
+    0xD4 /* √î */, 0xD5 /* √ï */, 0xD6 /* √ñ */, 0xD7 /* √ó */,
+    0xD8 /* √ò */, 0xD9 /* √ô */, 0xDA /* √ö */, 0xDB /* √õ */,
+    0xDC /* √ú */, 0xDD /* √ù */, 0xDE /* √û */, 0xDF /* √ü */,
 
-    (uchar)'‡', (uchar)'·', (uchar)'‚', (uchar)'„', /* 0xe0-0xe3 */
-    (uchar)'‰', (uchar)'Â', (uchar)'Ê', (uchar)'Á', /* 0xe4-0xe7 */
-    (uchar)'Ë', (uchar)'È', (uchar)'Í', (uchar)'Î', /* 0xe8-0xeb */
-    (uchar)'Ï', (uchar)'Ì', (uchar)'Ó', (uchar)'Ô', /* 0xec-0xef */
-    (uchar)'', (uchar)'Ò', (uchar)'Ú', (uchar)'Û', /* 0xf0-0xf3 */
-    (uchar)'Ù', (uchar)'ı', (uchar)'ˆ', (uchar)'˜', /* 0xf4-0xf7 */
-    (uchar)'¯', (uchar)'˘', (uchar)'˙', (uchar)'˚', /* 0xf8-0xfb */
-    (uchar)'¸', (uchar)'˝', (uchar)'˛', (uchar)'ˇ', /* 0xfc-0xff */
+    0xE0 /* √† */, 0xE1 /* √° */, 0xE2 /* √¢ */, 0xE3 /* √£ */,
+    0xE4 /* √§ */, 0xE5 /* √• */, 0xE6 /* √¶ */, 0xE7 /* √ß */,
+    0xE8 /* √® */, 0xE9 /* √© */, 0xEA /* √™ */, 0xEB /* √´ */,
+    0xEC /* √¨ */, 0xED /* √≠ */, 0xEE /* √Æ */, 0xEF /* √Ø */,
+    0xF0 /* √∞ */, 0xF1 /* √± */, 0xF2 /* √≤ */, 0xF3 /* √≥ */,
+    0xF4 /* √¥ */, 0xF5 /* √µ */, 0xF6 /* √∂ */, 0xF7 /* √∑ */,
+    0xF8 /* √∏ */, 0xF9 /* √π */, 0xFA /* √∫ */, 0xFB /* √ª */,
+    0xFC /* √º */, 0xFD /* √Ω */, 0xFE /* √æ */, 0xFF /* √ø */,
 };
 
 ushort CCtableG2[0x60] =
@@ -777,7 +775,7 @@ ushort CCtableG2[0x60] =
     0,                  0x2026,/* elipsis */
     0,                  0,                     /* 0x24-0x27 */
     0,                  0,
-    0x160,/*S under \/*/0,                     /* 0x28-0x2b */
+    0x160,/*S under \/ */0,                    /* 0x28-0x2b */
     0x152, /* CE */     0,
     0,                  0,                     /* 0x2c-0x2f */
     0x2588,/*block*/    0x2018,/* open ' */
@@ -785,7 +783,7 @@ ushort CCtableG2[0x60] =
     0x201d,/*close " */ 0xB7,/* dot */
     0,                  0,                     /* 0x34-0x37 */
     0,                  0x2122,/* super TM */
-    0x161,/*s under \/*/0,                     /* 0x38-0x3b */
+    0x161,/*s under \/ */0,                    /* 0x38-0x3b */
     0x153, /* ce */     0x2120,/* super SM */
     0,                  0x178,/*Y w/umlout*/   /* 0x3c-0x3f */
 

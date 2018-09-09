@@ -1,10 +1,7 @@
 include ( ../../settings.pro )
 
-QT += network xml sql script
-contains(QT_VERSION, ^5\\.[0-9]\\..*) {
-QT += widgets
+QT += network xml sql script widgets
 android: QT += androidextras
-}
 
 TEMPLATE = lib
 TARGET = myth-$$LIBVERSION
@@ -90,22 +87,19 @@ HEADERS += netgrabbermanager.h
 SOURCES += mythrssmanager.cpp           netutils.cpp
 SOURCES += netgrabbermanager.cpp
 
-INCLUDEPATH += ../../external/libsamplerate ../../external/libmythsoundtouch ../libmythfreesurround
+INCLUDEPATH += ../../external/libmythsoundtouch ../libmythfreesurround
 INCLUDEPATH += ../libmythbase
 INCLUDEPATH += ../.. ../ ./ ../libmythupnp ../libmythui
-INCLUDEPATH += ../../external/FFmpeg
-#INCLUDEPATH += ../../external/libmythbluray
+INCLUDEPATH += ../.. ../../external/FFmpeg
 INCLUDEPATH += ../libmythservicecontracts
 INCLUDEPATH += $${POSTINC}
-DEPENDPATH += ../../external/libsamplerate ../../external/libmythsoundtouch ../../external/libmythbluray
+DEPENDPATH += ../../external/libmythsoundtouch
 DEPENDPATH += ../libmythfreesurround
 DEPENDPATH += ../ ../libmythui ../libmythbase
 DEPENDPATH += ../libmythupnp
 DEPENDPATH += ./audio
 DEPENDPATH += ../libmythservicecontracts
 
-#LIBS += -L../../external/libmythbluray -lmythbluray-$$LIBVERSION
-LIBS += -L../../external/libsamplerate   -lmythsamplerate-$${LIBVERSION}
 LIBS += -L../../external/libmythsoundtouch   -lmythsoundtouch-$${LIBVERSION}
 LIBS += -L../libmythbase           -lmythbase-$${LIBVERSION}
 LIBS += -L../libmythui           -lmythui-$${LIBVERSION}
@@ -116,10 +110,14 @@ LIBS += -L../../external/FFmpeg/libavutil  -lmythavutil
 LIBS += -L../../external/FFmpeg/libavcodec -lmythavcodec
 LIBS += -L../../external/FFmpeg/libavformat  -lmythavformat
 LIBS += -L../libmythservicecontracts         -lmythservicecontracts-$${LIBVERSION}
+!using_libbluray_external {
+    #INCLUDEPATH += ../../external/libmythbluray/src
+    DEPENDPATH += ../../external/libmythbluray
+    #LIBS += -L../../external/libmythbluray     -lmythbluray-$${LIBVERSION}
+}
 
 !win32-msvc* {
-    POST_TARGETDEPS += ../../external/libsamplerate/libmythsamplerate-$${MYTH_LIB_EXT}
-#    POST_TARGETDEPS += ../../external/libmythbluray/libmythbluray-$${MYTH_LIB_EXT}
+    !using_libbluray_external:POST_TARGETDEPS += ../../external/libmythbluray/libmythbluray-$${MYTH_LIB_EXT}
     POST_TARGETDEPS += ../../external/libmythsoundtouch/libmythsoundtouch-$${MYTH_LIB_EXT}
     POST_TARGETDEPS += ../../external/FFmpeg/libswresample/$$avLibName(swresample)
     POST_TARGETDEPS += ../../external/FFmpeg/libavutil/$$avLibName(avutil)
@@ -130,7 +128,7 @@ LIBS += -L../libmythservicecontracts         -lmythservicecontracts-$${LIBVERSIO
 # Install headers so that plugins can compile independently
 inc.path = $${PREFIX}/include/mythtv/
 inc.files  = dialogbox.h mythcontext.h
-inc.files += mythwidgets.h remotefile.h oldsettings.h volumecontrol.h
+inc.files += mythwidgets.h remotefile.h volumecontrol.h
 inc.files += settings.h mythdialogs.h
 inc.files += audio/audiooutput.h audio/audiosettings.h
 inc.files += audio/audiooutputsettings.h audio/audiooutpututil.h
@@ -177,11 +175,7 @@ unix:!cygwin {
     SOURCES += mediamonitor-unix.cpp
     HEADERS += mediamonitor-unix.h
     !android {
-    contains(QT_VERSION, ^5\\.[0-9]\\..*) {
         using_qtdbus: QT += dbus
-    } else {
-        using_qtdbus: CONFIG += qdbus
-    }
     }
 }
 
@@ -279,3 +273,10 @@ LIBS += $$EXTRA_LIBS $$LATE_LIBS
 
 DISTFILES += \
     Makefile
+
+test_clean.commands = -cd test/ && $(MAKE) -f Makefile clean
+clean.depends = test_clean
+QMAKE_EXTRA_TARGETS += test_clean clean
+test_distclean.commands = -cd test/ && $(MAKE) -f Makefile distclean
+distclean.depends = test_distclean
+QMAKE_EXTRA_TARGETS += test_distclean distclean
