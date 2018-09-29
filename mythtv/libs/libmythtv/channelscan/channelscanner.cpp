@@ -49,9 +49,9 @@ using namespace std;
 #define LOC QString("ChScan: ")
 
 ChannelScanner::ChannelScanner() :
-    scanMonitor(NULL), channel(NULL), sigmonScanner(NULL), iptvScanner(NULL),
+    scanMonitor(nullptr), channel(nullptr), sigmonScanner(nullptr), iptvScanner(nullptr),
 #ifdef USING_VBOX
-    vboxScanner(NULL),
+    vboxScanner(nullptr),
 #endif
     freeToAirOnly(false), addFullTS(false), serviceRequirements(kRequireAV)
 {
@@ -64,7 +64,7 @@ ChannelScanner::~ChannelScanner()
     if (scanMonitor)
     {
         scanMonitor->deleteLater();
-        scanMonitor = NULL;
+        scanMonitor = nullptr;
     }
 }
 
@@ -73,20 +73,20 @@ void ChannelScanner::Teardown(void)
     if (sigmonScanner)
     {
         delete sigmonScanner;
-        sigmonScanner = NULL;
+        sigmonScanner = nullptr;
     }
 
     if (channel)
     {
         delete channel;
-        channel = NULL;
+        channel = nullptr;
     }
 
     if (iptvScanner)
     {
         iptvScanner->Stop();
         delete iptvScanner;
-        iptvScanner = NULL;
+        iptvScanner = nullptr;
     }
 
 #ifdef USING_VBOX
@@ -94,14 +94,14 @@ void ChannelScanner::Teardown(void)
     {
         vboxScanner->Stop();
         delete vboxScanner;
-        vboxScanner = NULL;
+        vboxScanner = nullptr;
     }
 #endif
 
     if (scanMonitor)
     {
         scanMonitor->deleteLater();
-        scanMonitor = NULL;
+        scanMonitor = nullptr;
     }
 }
 
@@ -415,34 +415,34 @@ void ChannelScanner::PreScanCommon(
 
 #ifdef USING_V4L2
     if (("V4L" == card_type) || ("MPEG" == card_type))
-        channel = new V4LChannel(NULL, device);
+        channel = new V4LChannel(nullptr, device);
 #endif
 
 #ifdef USING_HDHOMERUN
     if ("HDHOMERUN" == card_type)
     {
-        channel = new HDHRChannel(NULL, device);
+        channel = new HDHRChannel(nullptr, device);
     }
 #endif // USING_HDHOMERUN
 
 #ifdef USING_ASI
     if ("ASI" == card_type)
     {
-        channel = new ASIChannel(NULL, device);
+        channel = new ASIChannel(nullptr, device);
     }
 #endif // USING_ASI
 
 #ifdef USING_IPTV
     if ("FREEBOX" == card_type)
     {
-        channel = new IPTVChannel(NULL, device);
+        channel = new IPTVChannel(nullptr, device);
     }
 #endif
 
 #ifdef USING_VBOX
     if ("VBOX" == card_type)
     {
-        channel = new IPTVChannel(NULL, device);
+        channel = new IPTVChannel(nullptr, device);
     }
 #endif
 
@@ -455,7 +455,7 @@ void ChannelScanner::PreScanCommon(
 
     if ("EXTERNAL" == card_type)
     {
-        channel = new ExternalChannel(NULL, device);
+        channel = new ExternalChannel(nullptr, device);
     }
 
     if (!channel)
@@ -523,7 +523,7 @@ void ChannelScanner::PreScanCommon(
     if (mon)
         mon->AddListener(lis);
 
-    DVBSignalMonitor *dvbm = NULL;
+    DVBSignalMonitor *dvbm = nullptr;
     bool using_rotor = false;
 
 #ifdef USING_DVB

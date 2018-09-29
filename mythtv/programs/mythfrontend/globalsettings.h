@@ -149,7 +149,7 @@ class HostRefreshRateComboBoxSetting : public HostComboBoxSetting
   public:
     explicit HostRefreshRateComboBoxSetting(const QString &name) :
         HostComboBoxSetting(name) { }
-    virtual ~HostRefreshRateComboBoxSetting() { }
+    virtual ~HostRefreshRateComboBoxSetting() = default;
 
   public slots:
 #if defined(USING_XRANDR) || CONFIG_DARWIN
@@ -162,11 +162,21 @@ class HostRefreshRateComboBoxSetting : public HostComboBoxSetting
 
 class MainGeneralSettings : public GroupSetting
 {
-    Q_DECLARE_TR_FUNCTIONS(MainGeneralSettings);
+    Q_OBJECT
 
   public:
     MainGeneralSettings();
     virtual void applyChange();
+
+#ifdef USING_LIBCEC
+  public slots:
+    void cecChanged(bool);
+  protected:
+    HostCheckBoxSetting *m_CECPowerOnTVAllowed;
+    HostCheckBoxSetting *m_CECPowerOffTVAllowed;
+    HostCheckBoxSetting *m_CECPowerOnTVOnStart;
+    HostCheckBoxSetting *m_CECPowerOffTVOnExit;
+#endif  // USING_LIBCEC
 };
 
 class GeneralRecPrioritiesSettings : public GroupSetting
@@ -232,7 +242,7 @@ class PlaybackProfileConfig : public GroupSetting
 
   public:
     PlaybackProfileConfig(const QString &profilename, StandardSetting *parent);
-    virtual ~PlaybackProfileConfig();
+    virtual ~PlaybackProfileConfig() = default;
 
     virtual void Save(void);
 

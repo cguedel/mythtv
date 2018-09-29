@@ -24,6 +24,7 @@
 #include "mthread.h"
 #include "mythdate.h"
 #include "portchecker.h"
+#include "mythmiscutil.h"
 
 #define DEBUG_RECONNECT 0
 #if DEBUG_RECONNECT
@@ -66,7 +67,7 @@ bool TestDatabase(QString dbHostName,
     ret = db->OpenDatabase(true);
 
     delete db;
-    db = NULL;
+    db = nullptr;
 
     return ret;
 }
@@ -181,7 +182,7 @@ bool MSqlDatabase::OpenDatabase(bool skipdb)
                             "%2)")
                          .arg(trycount).arg(m_dbparms.wolRetry));
 
-                if (myth_system(m_dbparms.wolCommand) != GENERIC_EXIT_OK)
+                if (!MythWakeup(m_dbparms.wolCommand))
                 {
                     LOG(VB_GENERAL, LOG_ERR,
                             QString("Failed to run WOL command '%1'")
@@ -288,8 +289,8 @@ MDBManager::MDBManager()
     m_nextConnID = 0;
     m_connCount = 0;
 
-    m_schedCon = NULL;
-    m_DDCon = NULL;
+    m_schedCon = nullptr;
+    m_DDCon = nullptr;
 }
 
 MDBManager::~MDBManager()
@@ -320,7 +321,7 @@ MSqlDatabase *MDBManager::popConnection(bool reuse)
     if (reuse)
     {
         db = m_inuse[QThread::currentThread()];
-        if (db != NULL)
+        if (db != nullptr)
         {
             m_inuse_count[QThread::currentThread()]++;
             m_lock.unlock();
@@ -371,7 +372,7 @@ void MDBManager::pushConnection(MSqlDatabase *db)
             m_lock.unlock();
             return;
         }
-        m_inuse[QThread::currentThread()] = NULL;
+        m_inuse[QThread::currentThread()] = nullptr;
     }
 #endif
 
@@ -397,7 +398,7 @@ void MDBManager::PurgeIdleConnections(bool leaveOne)
     DBList::iterator it = list.begin();
 
     uint purgedConnections = 0, totalConnections = 0;
-    MSqlDatabase *newDb = NULL;
+    MSqlDatabase *newDb = nullptr;
     while (it != list.end())
     {
         totalConnections++;
@@ -454,7 +455,7 @@ void MDBManager::PurgeIdleConnections(bool leaveOne)
 MSqlDatabase *MDBManager::getStaticCon(MSqlDatabase **dbcon, QString name)
 {
     if (!dbcon)
-        return NULL;
+        return nullptr;
 
     if (!*dbcon)
     {
@@ -507,9 +508,9 @@ void MDBManager::CloseDatabases()
         delete db;
 
         if (db == m_schedCon)
-            m_schedCon = NULL;
+            m_schedCon = nullptr;
         if (db == m_DDCon)
-            m_DDCon = NULL;
+            m_DDCon = nullptr;
     }
     m_lock.unlock();
 }
@@ -519,7 +520,7 @@ void MDBManager::CloseDatabases()
 
 static void InitMSqlQueryInfo(MSqlQueryInfo &qi)
 {
-    qi.db = NULL;
+    qi.db = nullptr;
     qi.qsqldb = QSqlDatabase();
     qi.returnConnection = true;
 }

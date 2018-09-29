@@ -108,7 +108,7 @@ class Playlist : public QObject
     int  getID(void) { return m_playlistid; }
     void setID(int x) { m_playlistid = x; }
 
-    void getStats(uint *trackCount, uint *totalLength, uint currentTrack = 0, uint *playedLength = NULL) const;
+    void getStats(uint *trackCount, uint *totalLength, uint currentTrack = 0, uint *playedLength = nullptr) const;
 
     void resync(void);
 
@@ -116,12 +116,12 @@ class Playlist : public QObject
     void computeSize(double &size_in_MB, double &size_in_sec);
     int CreateCDMP3(void);
     int CreateCDAudio(void);
-#endif
 
   private slots:
     void mkisofsData(int fd);
     void cdrecordData(int fd);
     void processExit(uint retval = 0);
+#endif
 
   private:
     MusicMetadata* getRawSongAt(int pos) const;
